@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
+import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import type { PublicRoom, ReplayAuthResponse, ReplayChart } from '@/types/api';
 import type { ChartInfo } from '@/services/phiraApi';
 
@@ -39,6 +40,25 @@ export function PublicApiPanel() {
   const [sessionToken, setSessionToken] = useState('');
   const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
   const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(chartCache);
+  
+  // 谱面详情弹窗状态
+  const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
+  const [chartDialogOpen, setChartDialogOpen] = useState(false);
+
+  // 加载谱面信息
+  const loadChartInfo = useCallback(async (chartId: number) => {
+    if (chartCache.has(chartId)) {
+      return chartCache.get(chartId)!;
+    }
+    try {
+      const info = await phiraApiService.getChartInfo(chartId);
+      chartCache.set(chartId, info);
+      setChartInfos(new Map(chartCache));
+      return info;
+    } catch {
+      return null;
+    }
+  }, []);
 
   // 从本地存储加载配置
   useEffect(() => {
@@ -57,20 +77,24 @@ export function PublicApiPanel() {
     }
   }, []);
 
-  // 加载谱面信息
-  const loadChartInfo = useCallback(async (chartId: number) => {
-    if (chartCache.has(chartId)) {
-      return chartCache.get(chartId)!;
-    }
-    try {
-      const info = await phiraApiService.getChartInfo(chartId);
-      chartCache.set(chartId, info);
-      setChartInfos(new Map(chartCache));
-      return info;
-    } catch {
-      return null;
-    }
-  }, []);
+  // 监听登录成功事件，自动更新回放列表
+  useEffect(() => {
+    const handleReplayAuthSuccess = (event: CustomEvent<ReplayAuthResponse>) => {
+      const data = event.detail;
+      setReplayData(data);
+      setSessionToken(data.sessionToken);
+      
+      // 预加载谱面信息
+      data.charts?.forEach((chart: ReplayChart) => {
+        loadChartInfo(chart.chartId);
+      });
+    };
+
+    window.addEventListener('replayAuthSuccess', handleReplayAuthSuccess as EventListener);
+    return () => {
+      window.removeEventListener('replayAuthSuccess', handleReplayAuthSuccess as EventListener);
+    };
+  }, [loadChartInfo]);
 
   const fetchRooms = async () => {
     const config = apiService.getConfig();
@@ -169,6 +193,11 @@ export function PublicApiPanel() {
       }
       return next;
     });
+  };
+
+  const handleOpenChartDetail = (chartId: number) => {
+    setSelectedChartId(chartId);
+    setChartDialogOpen(true);
   };
 
   const getStateBadge = (state: string) => {
@@ -325,22 +354,29 @@ export function PublicApiPanel() {
                           key={chart.chartId}
                           className="p-3 border rounded-lg transition-all duration-200"
                         >
-                          <div 
-                            className="flex items-center justify-between cursor-pointer"
-                            onClick={() => toggleChartExpand(chart.chartId)}
-                          >
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <Music className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">
+                              <span 
+                                className="font-medium cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => handleOpenChartDetail(chart.chartId)}
+                              >
                                 {chartInfo ? chartInfo.name : `谱面 ID: ${chart.chartId}`}
                               </span>
                               {chartInfo && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge 
+                                  variant="secondary" 
+                                  className="text-xs cursor-pointer hover:bg-secondary/80"
+                                  onClick={() => handleOpenChartDetail(chart.chartId)}
+                                >
                                   {chartInfo.level}
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div 
+                              className="flex items-center gap-2 cursor-pointer"
+                              onClick={() => toggleChartExpand(chart.chartId)}
+                            >
                               <Badge variant="outline">{chart.replays.length} 个回放</Badge>
                               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </div>
@@ -403,6 +439,15 @@ export function PublicApiPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 谱面详情弹窗 */}
+      {selectedChartId && (
+        <ChartDetailDialog
+          chartId={selectedChartId}
+          open={chartDialogOpen}
+          onOpenChange={setChartDialogOpen}
+        />
+      )}
     </div>
   );
 }

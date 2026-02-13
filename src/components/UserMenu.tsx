@@ -56,6 +56,30 @@ export function UserMenu({ onLoginSuccess }: UserMenuProps) {
   const handleLoginSuccess = () => {
     checkLoginStatus();
     onLoginSuccess?.();
+    
+    // 登录成功后自动尝试拉取谱面回放列表
+    fetchReplayList();
+  };
+
+  // 自动拉取谱面回放列表
+  const fetchReplayList = async () => {
+    const userToken = phiraApiService.getUserToken();
+    if (!userToken) return;
+
+    try {
+      const data = await apiService.replayAuth(userToken);
+      if (data.ok) {
+        console.log('[UserMenu] 谱面回放列表获取成功:', data);
+        toast.success(`已获取 ${data.charts?.length || 0} 个谱面的回放记录`);
+        
+        // 触发全局事件，通知 PublicApiPanel 更新回放列表
+        window.dispatchEvent(new CustomEvent('replayAuthSuccess', { detail: data }));
+      } else {
+        console.log('[UserMenu] 谱面回放认证失败:', (data as any).error);
+      }
+    } catch (error) {
+      console.error('[UserMenu] 获取谱面回放列表失败:', error);
+    }
   };
 
   const handleLogout = () => {
