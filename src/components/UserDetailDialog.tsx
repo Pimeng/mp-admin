@@ -32,9 +32,10 @@ interface UserDetailDialogProps {
   userId: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  readOnly?: boolean;
 }
 
-export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialogProps) {
+export function UserDetailDialog({ userId, open, onOpenChange, readOnly = false }: UserDetailDialogProps) {
   const [userInfo, setUserInfo] = useState<UserDetailInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [userRoomInfo, setUserRoomInfo] = useState<UserInfo | null>(null);
@@ -267,32 +268,36 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
                 </div>
               </div>
 
-              <Separator />
+              {!readOnly && (
+                <>
+                  <Separator />
 
-              {/* 管理员操作 */}
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground">管理员操作</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant={isBanned ? "outline" : "destructive"}
-                    size="sm"
-                    onClick={handleBanUser}
-                    disabled={banLoading}
-                  >
-                    <Ban className="h-4 w-4 mr-2" />
-                    {banLoading ? '处理中...' : (isBanned ? '解封用户' : '封禁用户')}
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDisconnectUser}
-                    disabled={disconnectLoading || !isOnline}
-                  >
-                    <PowerOff className="h-4 w-4 mr-2" />
-                    {disconnectLoading ? '处理中...' : '断开连接'}
-                  </Button>
-                </div>
-              </div>
+                  {/* 管理员操作 */}
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-muted-foreground">管理员操作</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        variant={isBanned ? "outline" : "destructive"}
+                        size="sm"
+                        onClick={handleBanUser}
+                        disabled={banLoading}
+                      >
+                        <Ban className="h-4 w-4 mr-2" />
+                        {banLoading ? '处理中...' : (isBanned ? '解封用户' : '封禁用户')}
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDisconnectUser}
+                        disabled={disconnectLoading || !isOnline}
+                      >
+                        <PowerOff className="h-4 w-4 mr-2" />
+                        {disconnectLoading ? '处理中...' : '断开连接'}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <Separator />
 

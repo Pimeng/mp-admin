@@ -382,11 +382,12 @@ export function PublicRoomDetailPage() {
         </div>
       </main>
 
-      {/* 用户详情弹窗 */}
+      {/* 用户详情弹窗 - 访客模式（只读） */}
       <UserDetailDialog
         userId={selectedUserId || 0}
         open={userDialogOpen}
         onOpenChange={setUserDialogOpen}
+        readOnly={true}
       />
 
       {/* 谱面详情弹窗 */}
