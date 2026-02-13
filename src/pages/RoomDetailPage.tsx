@@ -77,6 +77,8 @@ export function RoomDetailPage() {
   const [gameResultsOpen, setGameResultsOpen] = useState(false);
   const [gameFinishedPlayers, setGameFinishedPlayers] = useState<{ userId: number; userName: string; recordId?: number }[]>([]);
   const previousStateRef = useRef<string>('');
+  // 使用 ref 来存储玩家成绩，避免重复渲染问题
+  const playerRecordsRef = useRef<Map<number, { userId: number; userName: string; recordId?: number }>>(new Map());
 
   // 初始加载房间数据
   const fetchRoomDetail = useCallback(async () => {
@@ -207,6 +209,21 @@ export function RoomDetailPage() {
 
           console.log('[GameResults] 状态检测:', { prevState, currentState, roomId: updatedRoom.roomid });
 
+          // 持续收集玩家成绩（在游戏进行中时就开始收集）
+          if (currentState === 'playing') {
+            updatedRoom.users.forEach(u => {
+              // 如果玩家有 record_id 且还没有被记录
+              if (u.record_id && !playerRecordsRef.current.has(u.id)) {
+                console.log('[GameResults] 收集到玩家成绩:', { userId: u.id, userName: u.name, recordId: u.record_id });
+                playerRecordsRef.current.set(u.id, {
+                  userId: u.id,
+                  userName: u.name,
+                  recordId: u.record_id,
+                });
+              }
+            });
+          }
+
           // 先更新 ref，确保下一次比较时是正确的状态
           const oldState = previousStateRef.current;
           previousStateRef.current = currentState;
@@ -219,24 +236,27 @@ export function RoomDetailPage() {
             if (oldState === 'playing' && (currentState === 'waiting' || currentState === 'select_chart')) {
               console.log('[GameResults] 游戏结束 detected!');
 
-              // 游戏结束，收集所有完成游戏的玩家成绩
-              const finishedPlayers = updatedRoom.users
-                .filter(u => u.finished || u.aborted)
-                .map(u => ({
-                  userId: u.id,
-                  userName: u.name,
-                  recordId: u.record_id ?? undefined,
-                }));
+              // 游戏结束，使用收集到的所有成绩
+              const finishedPlayers = Array.from(playerRecordsRef.current.values());
 
-              console.log('[GameResults] 完成游戏的玩家:', finishedPlayers);
+              console.log('[GameResults] 收集到的玩家成绩:', finishedPlayers);
 
               if (finishedPlayers.length > 0) {
                 setGameFinishedPlayers(finishedPlayers);
                 setGameResultsOpen(true);
                 console.log('[GameResults] 弹窗已打开');
               } else {
-                console.log('[GameResults] 没有完成游戏的玩家，不显示弹窗');
+                console.log('[GameResults] 没有收集到玩家成绩，不显示弹窗');
               }
+
+              // 清空收集的成绩，为下一局做准备
+              playerRecordsRef.current.clear();
+            }
+
+            // 如果状态变为 playing，清空上一局的成绩记录
+            if (currentState === 'playing') {
+              console.log('[GameResults] 新游戏开始，清空成绩记录');
+              playerRecordsRef.current.clear();
             }
           }
 
@@ -283,8 +303,9 @@ export function RoomDetailPage() {
       unsubscribeSubscribe();
       unsubscribeMessage();
       webSocketService.adminUnsubscribe();
-      // 重置状态引用，下次进入房间时重新初始化
+      // 重置状态引用和成绩记录，下次进入房间时重新初始化
       previousStateRef.current = '';
+      playerRecordsRef.current.clear();
     };
   }, [roomId]);
 
