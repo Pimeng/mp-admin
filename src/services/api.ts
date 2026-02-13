@@ -8,6 +8,7 @@ import type {
   OtpVerifyResponse,
   CurrentUserInfo
 } from '@/types/api';
+import { phiraApiService } from './phiraApi';
 
 class ApiService {
   private config: ApiConfig = { baseUrl: '', adminToken: '' };
@@ -237,12 +238,17 @@ class ApiService {
 
   // ========== Phira 用户信息 ==========
 
-  // 获取当前登录用户信息（使用 adminToken 作为 Bearer token）
+  // 获取当前登录用户信息（使用用户登录的 token）
   async getCurrentUser(): Promise<CurrentUserInfo> {
+    const userToken = phiraApiService.getUserToken();
+    if (!userToken) {
+      throw new Error('用户未登录');
+    }
+    
     const response = await fetch('https://phira.5wyxi.com/me', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${this.config.adminToken}`,
+        'Authorization': `Bearer ${userToken}`,
       },
     });
     
