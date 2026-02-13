@@ -630,6 +630,33 @@ export function RoomDetailPage() {
                   刷新数据
                 </Button>
                 <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => {
+                    const newMaxUsers = prompt('请输入新的最大人数 (1-64):', room?.max_users?.toString() || '8');
+                    if (newMaxUsers) {
+                      const maxUsers = parseInt(newMaxUsers, 10);
+                      if (maxUsers >= 1 && maxUsers <= 64) {
+                        apiService.setRoomMaxUsers(roomId!, maxUsers).then((result) => {
+                          if (result.ok) {
+                            toast.success(`最大人数已设置为 ${maxUsers}`);
+                            fetchRoomDetail();
+                          } else {
+                            toast.error('设置失败');
+                          }
+                        }).catch(() => {
+                          toast.error('请求失败');
+                        });
+                      } else {
+                        toast.error('最大人数必须在 1-64 之间');
+                      }
+                    }
+                  }}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  修改最大人数
+                </Button>
+                <Button 
                   variant="destructive" 
                   className="w-full" 
                   onClick={handleDisbandRoom}
