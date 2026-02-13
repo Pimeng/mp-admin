@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +19,15 @@ import {
   Trash2,
   Settings,
   Volume2,
-  UserX
+  UserX,
+  Eye
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
 import type { Room, UserInfo } from '@/types/api';
 
 export function AdminApiPanel() {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState('');
@@ -204,6 +207,7 @@ export function AdminApiPanel() {
       'select_chart': { label: '选谱', variant: 'secondary' },
       'playing': { label: '游戏中', variant: 'default' },
       'waiting': { label: '等待中', variant: 'outline' },
+      'waiting_for_ready': { label: '准备中', variant: 'secondary' },
     };
     const config = stateMap[type] || { label: type, variant: 'outline' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
@@ -246,14 +250,25 @@ export function AdminApiPanel() {
                       {rooms.map((room, index) => (
                         <div
                           key={room.roomid}
-                          className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm"
+                          className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm group"
                           style={{ animationDelay: `${index * 0.05}s` }}
                         >
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium">{room.roomid}</span>
-                            <div className="flex gap-1">
-                              {getStateBadge(room.state.type)}
-                              {room.locked && <Badge variant="destructive">锁定</Badge>}
+                            <div className="flex items-center gap-2">
+                              <div className="flex gap-1">
+                                {getStateBadge(room.state.type)}
+                                {room.locked && <Badge variant="destructive">锁定</Badge>}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => navigate(`/room/${room.roomid}`)}
+                                title="查看详情"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                           <div className="text-sm text-muted-foreground space-y-1">

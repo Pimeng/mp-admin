@@ -173,6 +173,7 @@ export function PublicApiPanel() {
       'select_chart': { label: '选谱', variant: 'secondary' },
       'playing': { label: '游戏中', variant: 'default' },
       'waiting': { label: '等待中', variant: 'outline' },
+      'waiting_for_ready': { label: '准备中', variant: 'secondary' },
     };
     const config = stateMap[state] || { label: state, variant: 'outline' };
     return <Badge variant={config.variant}>{config.label}</Badge>;

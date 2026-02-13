@@ -61,6 +61,25 @@ export interface RecordInfo {
   std_score: number | null;
 }
 
+export interface UserDetailInfo {
+  id: number;
+  name: string;
+  avatar: string;
+  badges: string[];
+  language: string;
+  bio: string;
+  exp: number;
+  rks: number;
+  joined: string;
+  last_login: string;
+  roles: number;
+  banned: boolean;
+  login_banned: boolean;
+  follower_count: number;
+  following_count: number;
+  following: boolean;
+}
+
 const PHIRA_API_BASE = 'https://phira.5wyxi.com';
 
 class PhiraApiService {
@@ -153,6 +172,40 @@ class PhiraApiService {
     } catch {
       return null;
     }
+  }
+
+  // 获取用户详细信息
+  async getUserInfo(userId: number): Promise<UserDetailInfo> {
+    const response = await fetch(`${PHIRA_API_BASE}/user/${userId}`);
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    return data;
+  }
+
+  // 获取用户详细信息（带缓存）
+  private userCache: Map<number, UserDetailInfo> = new Map();
+  
+  async getUserInfoCached(userId: number): Promise<UserDetailInfo | null> {
+    if (this.userCache.has(userId)) {
+      return this.userCache.get(userId)!;
+    }
+    
+    try {
+      const info = await this.getUserInfo(userId);
+      this.userCache.set(userId, info);
+      return info;
+    } catch {
+      return null;
+    }
+  }
+
+  clearCache() {
+    this.chartCache.clear();
+    this.userCache.clear();
   }
 }
 

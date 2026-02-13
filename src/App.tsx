@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { ConfigDialog } from '@/components/ConfigDialog';
@@ -8,6 +9,7 @@ import { PublicApiPanel } from '@/sections/PublicApiPanel';
 import { AdminApiPanel } from '@/sections/AdminApiPanel';
 import { OtpPanel } from '@/sections/OtpPanel';
 import { ContestPanel } from '@/sections/ContestPanel';
+import { RoomDetailPage } from '@/pages/RoomDetailPage';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { 
@@ -24,7 +26,7 @@ import {
 
 type TabType = 'public' | 'admin' | 'contest' | 'otp';
 
-function App() {
+function MainLayout() {
   const [activeTab, setActiveTab] = useState<TabType>('public');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
@@ -219,6 +221,18 @@ function App() {
 
       <Toaster position="top-right" />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainLayout />} />
+        <Route path="/room/:roomId" element={<RoomDetailPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
