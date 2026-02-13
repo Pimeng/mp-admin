@@ -61,7 +61,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
   const fetchUserRoom = useCallback(async () => {
     setLoadingRoom(true);
     try {
-      const data = await apiService.getUserInfo(userId);
+      const data = await apiService.getUser(userId);
       if (data.ok && data.user) {
         setUserRoomInfo(data.user);
       }
@@ -140,7 +140,7 @@ export function UserDetailDialog({ userId, open, onOpenChange }: UserDetailDialo
     return null;
   };
 
-  const isOnline = userRoomInfo?.connected;
+  const isOnline = userRoomInfo?.connected === true;
   const isBanned = userInfo?.banned || userRoomInfo?.banned;
 
   return (
