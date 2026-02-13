@@ -111,8 +111,8 @@ type ConnectionHandler = () => void;
 class WebSocketService {
   private ws: WebSocket | null = null;
   private baseUrl: string = '';
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private messageHandlers: Set<MessageHandler> = new Set();
   private connectHandlers: Set<ConnectionHandler> = new Set();
   private disconnectHandlers: Set<ConnectionHandler> = new Set();
@@ -271,7 +271,7 @@ class WebSocketService {
   }
 
   // 订阅状态
-  private isSubscribed = false;
+  private subscribed = false;
   private subscribeHandlers: Set<(success: boolean) => void> = new Set();
 
   // 处理消息
@@ -283,8 +283,9 @@ class WebSocketService {
 
     // 处理订阅成功
     if (message.type === 'subscribed') {
-      console.log('Subscribed to room:', (message as { roomId: string }).roomId);
-      this.isSubscribed = true;
+      const roomId = (message as unknown as { roomId: string }).roomId;
+      console.log('Subscribed to room:', roomId);
+      this.subscribed = true;
       this.subscribeHandlers.forEach(handler => handler(true));
       return;
     }
@@ -292,18 +293,18 @@ class WebSocketService {
     // 处理管理员订阅成功
     if (message.type === 'admin_subscribed') {
       console.log('Admin subscribed successfully');
-      this.isSubscribed = true;
+      this.subscribed = true;
       this.subscribeHandlers.forEach(handler => handler(true));
       return;
     }
 
     // 处理错误
     if (message.type === 'error') {
-      const errorMsg = (message as { message: string }).message;
+      const errorMsg = (message as unknown as { message: string }).message;
       console.error('WebSocket error message:', errorMsg);
       // 如果是授权错误，重置订阅状态
       if (errorMsg === 'unauthorized') {
-        this.isSubscribed = false;
+        this.subscribed = false;
         this.subscribeHandlers.forEach(handler => handler(false));
       }
       return;
@@ -321,7 +322,7 @@ class WebSocketService {
 
   // 检查是否已订阅
   isSubscribed(): boolean {
-    return this.isSubscribed;
+    return this.subscribed;
   }
 
   // 添加订阅状态处理器

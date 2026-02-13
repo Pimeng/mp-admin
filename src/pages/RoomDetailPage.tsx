@@ -183,7 +183,7 @@ export function RoomDetailPage() {
     // 监听消息
     const unsubscribeMessage = webSocketService.onMessage((message) => {
       if (message.type === 'admin_update') {
-        const adminMessage = message as { data: { changes: { rooms: Room[] } } };
+        const adminMessage = message as unknown as { data: { changes: { rooms: Room[] } } };
         const updatedRoom = adminMessage.data.changes.rooms.find(r => r.roomid === roomId);
         if (updatedRoom) {
           setRoom(updatedRoom);
@@ -197,20 +197,20 @@ export function RoomDetailPage() {
           }
         }
       }
-      
+
       // 处理公屏消息
       if (message.type === 'room_message') {
-        const roomMsg = message as { data: ChatMessage };
+        const roomMsg = message as unknown as { data: ChatMessage };
         setChatMessages(prev => [...prev, {
           user: roomMsg.data.user,
           content: roomMsg.data.content,
           timestamp: roomMsg.data.timestamp,
         }]);
       }
-      
+
       // 处理房间日志消息
       if (message.type === 'room_log') {
-        const logMsg = message as { data: RoomLogMessage };
+        const logMsg = message as unknown as { data: RoomLogMessage };
         setChatMessages(prev => [...prev, {
           user: 0, // 系统消息
           content: logMsg.data.message,

@@ -88,7 +88,7 @@ export function useWebSocket({ roomId, userId, enableAdmin }: UseWebSocketOption
     const unsubscribe = webSocketService.onMessage((message) => {
       // 处理房间更新
       if (message.type === 'room_update') {
-        const roomMessage = message as RoomUpdateMessage;
+        const roomMessage = message as unknown as RoomUpdateMessage;
         // 将 WebSocket 数据转换为 Room 类型
         const updatedRoom: Room = {
           roomid: roomMessage.data.roomid,
@@ -96,7 +96,10 @@ export function useWebSocket({ roomId, userId, enableAdmin }: UseWebSocketOption
           live: roomMessage.data.live,
           locked: roomMessage.data.locked,
           cycle: roomMessage.data.cycle,
-          host: roomMessage.data.host,
+          host: {
+            id: roomMessage.data.host.id,
+            name: roomMessage.data.host.name,
+          },
           state: {
             type: roomMessage.data.state as 'select_chart' | 'playing' | 'waiting',
           },
@@ -116,17 +119,36 @@ export function useWebSocket({ roomId, userId, enableAdmin }: UseWebSocketOption
 
       // 处理管理员更新
       if (message.type === 'admin_update') {
-        const adminMessage = message as AdminUpdateMessage;
-        const updatedRooms = adminMessage.data.changes.rooms.map(r => ({
+        const adminMessage = message as unknown as AdminUpdateMessage;
+        const updatedRooms: Room[] = adminMessage.data.changes.rooms.map(r => ({
           roomid: r.roomid,
           max_users: r.max_users,
           live: r.live,
           locked: r.locked,
           cycle: r.cycle,
-          host: r.host,
-          state: r.state,
+          host: {
+            id: r.host.id,
+            name: r.host.name,
+          },
+          state: {
+            type: r.state.type as 'select_chart' | 'playing' | 'waiting',
+            results_count: r.state.results_count,
+            aborted_count: r.state.aborted_count,
+            finished_users: r.state.finished_users,
+            aborted_users: r.state.aborted_users,
+          },
           chart: r.chart,
-          users: r.users,
+          users: r.users.map(u => ({
+            id: u.id,
+            name: u.name,
+            connected: u.connected,
+            is_host: u.is_host,
+            game_time: u.game_time ?? -Infinity,
+            language: u.language,
+            finished: u.finished,
+            aborted: u.aborted,
+            record_id: u.record_id ?? undefined,
+          })),
           monitors: r.monitors,
         }));
         setRooms(updatedRooms);
