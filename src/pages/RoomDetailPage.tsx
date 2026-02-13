@@ -143,12 +143,16 @@ export function RoomDetailPage() {
     fetchRoomDetail();
   }, [fetchRoomDetail]);
 
-  // 初始化状态引用
+  // 初始化状态引用 - 在获取到房间数据时设置
   useEffect(() => {
     if (room) {
-      previousStateRef.current = room.state.type;
+      // 只有当状态真正变化时才更新 ref
+      if (previousStateRef.current !== room.state.type) {
+        console.log('[GameResults] 初始化/更新状态:', previousStateRef.current, '->', room.state.type);
+        previousStateRef.current = room.state.type;
+      }
     }
-  }, [room?.state.type]);
+  }, [room?.roomid, room?.state.type]);
 
   // WebSocket 连接和订阅
   useEffect(() => {
@@ -201,23 +205,41 @@ export function RoomDetailPage() {
           const prevState = previousStateRef.current;
           const currentState = updatedRoom.state.type;
 
-          if (prevState === 'playing' && (currentState === 'waiting' || currentState === 'select_chart')) {
-            // 游戏结束，收集所有完成游戏的玩家成绩
-            const finishedPlayers = updatedRoom.users
-              .filter(u => u.finished || u.aborted)
-              .map(u => ({
-                userId: u.id,
-                userName: u.name,
-                recordId: u.record_id ?? undefined,
-              }));
+          console.log('[GameResults] 状态检测:', { prevState, currentState, roomId: updatedRoom.roomid });
 
-            if (finishedPlayers.length > 0) {
-              setGameFinishedPlayers(finishedPlayers);
-              setGameResultsOpen(true);
+          // 先更新 ref，确保下一次比较时是正确的状态
+          const oldState = previousStateRef.current;
+          previousStateRef.current = currentState;
+
+          // 确保 prevState 已初始化且状态发生变化
+          if (oldState && oldState !== currentState) {
+            console.log('[GameResults] 状态变化:', oldState, '->', currentState);
+
+            // 检测游戏结束：从 playing 变为 waiting 或 select_chart
+            if (oldState === 'playing' && (currentState === 'waiting' || currentState === 'select_chart')) {
+              console.log('[GameResults] 游戏结束 detected!');
+
+              // 游戏结束，收集所有完成游戏的玩家成绩
+              const finishedPlayers = updatedRoom.users
+                .filter(u => u.finished || u.aborted)
+                .map(u => ({
+                  userId: u.id,
+                  userName: u.name,
+                  recordId: u.record_id ?? undefined,
+                }));
+
+              console.log('[GameResults] 完成游戏的玩家:', finishedPlayers);
+
+              if (finishedPlayers.length > 0) {
+                setGameFinishedPlayers(finishedPlayers);
+                setGameResultsOpen(true);
+                console.log('[GameResults] 弹窗已打开');
+              } else {
+                console.log('[GameResults] 没有完成游戏的玩家，不显示弹窗');
+              }
             }
           }
 
-          previousStateRef.current = currentState;
           setRoom(updatedRoom);
 
           // 更新房主信息
@@ -261,6 +283,8 @@ export function RoomDetailPage() {
       unsubscribeSubscribe();
       unsubscribeMessage();
       webSocketService.adminUnsubscribe();
+      // 重置状态引用，下次进入房间时重新初始化
+      previousStateRef.current = '';
     };
   }, [roomId]);
 
