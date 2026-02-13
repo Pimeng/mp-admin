@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import Swal from 'sweetalert2';
 import { 
   ArrowLeft, 
   Users, 
@@ -239,9 +240,23 @@ export function RoomDetailPage() {
 
   const handleDisbandRoom = async () => {
     if (!roomId) return;
+    
+    const result = await Swal.fire({
+      title: '确认解散房间?',
+      text: `您确定要解散房间 ${roomId} 吗？此操作不可撤销！`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: '确认解散',
+      cancelButtonText: '取消',
+    });
+    
+    if (!result.isConfirmed) return;
+    
     try {
-      const result = await apiService.disbandRoom(roomId);
-      if (result.ok) {
+      const apiResult = await apiService.disbandRoom(roomId);
+      if (apiResult.ok) {
         toast.success(`房间 ${roomId} 已解散`);
         navigate('/');
       } else {
@@ -632,23 +647,44 @@ export function RoomDetailPage() {
                 <Button 
                   variant="outline" 
                   className="w-full" 
-                  onClick={() => {
-                    const newMaxUsers = prompt('请输入新的最大人数 (1-64):', room?.max_users?.toString() || '8');
-                    if (newMaxUsers) {
-                      const maxUsers = parseInt(newMaxUsers, 10);
-                      if (maxUsers >= 1 && maxUsers <= 64) {
-                        apiService.setRoomMaxUsers(roomId!, maxUsers).then((result) => {
-                          if (result.ok) {
-                            toast.success(`最大人数已设置为 ${maxUsers}`);
-                            fetchRoomDetail();
-                          } else {
-                            toast.error('设置失败');
-                          }
-                        }).catch(() => {
-                          toast.error('请求失败');
-                        });
-                      } else {
-                        toast.error('最大人数必须在 1-64 之间');
+                  onClick={async () => {
+                    const result = await Swal.fire({
+                      title: '修改最大人数',
+                      input: 'number',
+                      inputLabel: '请输入新的最大人数',
+                      inputValue: room?.max_users?.toString() || '8',
+                      inputAttributes: {
+                        min: '1',
+                        max: '64',
+                        step: '1'
+                      },
+                      showCancelButton: true,
+                      confirmButtonText: '确认',
+                      cancelButtonText: '取消',
+                      inputValidator: (value) => {
+                        if (!value) {
+                          return '请输入人数';
+                        }
+                        const num = parseInt(value, 10);
+                        if (num < 1 || num > 64) {
+                          return '最大人数必须在 1-64 之间';
+                        }
+                        return null;
+                      }
+                    });
+                    
+                    if (result.isConfirmed && result.value) {
+                      const maxUsers = parseInt(result.value, 10);
+                      try {
+                        const apiResult = await apiService.setRoomMaxUsers(roomId!, maxUsers);
+                        if (apiResult.ok) {
+                          toast.success(`最大人数已设置为 ${maxUsers}`);
+                          fetchRoomDetail();
+                        } else {
+                          toast.error('设置失败');
+                        }
+                      } catch {
+                        toast.error('请求失败');
                       }
                     }
                   }}
