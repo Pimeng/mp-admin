@@ -34,6 +34,7 @@ import { toast } from 'sonner';
 import { UserDetailDialog } from '@/components/UserDetailDialog';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import { RecordDetailDialog } from '@/components/RecordDetailDialog';
+import { GameResultsDialog } from '@/components/GameResultsDialog';
 import type { Room } from '@/types/api';
 
 interface MonitorInfo {
@@ -73,6 +74,9 @@ export function RoomDetailPage() {
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  const [gameResultsOpen, setGameResultsOpen] = useState(false);
+  const [gameFinishedPlayers, setGameFinishedPlayers] = useState<{ userId: number; userName: string; recordId?: number }[]>([]);
+  const previousStateRef = useRef<string>('');
 
   // 初始加载房间数据
   const fetchRoomDetail = useCallback(async () => {
@@ -139,6 +143,13 @@ export function RoomDetailPage() {
     fetchRoomDetail();
   }, [fetchRoomDetail]);
 
+  // 初始化状态引用
+  useEffect(() => {
+    if (room) {
+      previousStateRef.current = room.state.type;
+    }
+  }, [room?.state.type]);
+
   // WebSocket 连接和订阅
   useEffect(() => {
     if (!roomId) return;
@@ -186,7 +197,29 @@ export function RoomDetailPage() {
         const adminMessage = message as unknown as { data: { changes: { rooms: Room[] } } };
         const updatedRoom = adminMessage.data.changes.rooms.find(r => r.roomid === roomId);
         if (updatedRoom) {
+          // 检测游戏状态变化：从 playing 变为 waiting 或 select_chart，表示游戏结束
+          const prevState = previousStateRef.current;
+          const currentState = updatedRoom.state.type;
+
+          if (prevState === 'playing' && (currentState === 'waiting' || currentState === 'select_chart')) {
+            // 游戏结束，收集所有完成游戏的玩家成绩
+            const finishedPlayers = updatedRoom.users
+              .filter(u => u.finished || u.aborted)
+              .map(u => ({
+                userId: u.id,
+                userName: u.name,
+                recordId: u.record_id ?? undefined,
+              }));
+
+            if (finishedPlayers.length > 0) {
+              setGameFinishedPlayers(finishedPlayers);
+              setGameResultsOpen(true);
+            }
+          }
+
+          previousStateRef.current = currentState;
           setRoom(updatedRoom);
+
           // 更新房主信息
           if (updatedRoom.host?.id && updatedRoom.host.id !== hostInfo?.id) {
             fetchHostInfo(updatedRoom.host.id);
@@ -913,6 +946,13 @@ export function RoomDetailPage() {
           onOpenChange={setRecordDialogOpen}
         />
       )}
+
+      {/* 游戏结束成绩统计弹窗 */}
+      <GameResultsDialog
+        open={gameResultsOpen}
+        onOpenChange={setGameResultsOpen}
+        playerRecordIds={gameFinishedPlayers}
+      />
     </div>
   );
 }
