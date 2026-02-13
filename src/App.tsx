@@ -200,7 +200,7 @@ function MainLayout() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Code2 className="h-4 w-4" />
-              <span>Phira MP | API By Pimeng | <a href="https://github.com/Pimeng/tphira-mp" target="_blank" rel="noopener noreferrer">tphira-mp</a></span>
+              <span>Phira MP | By Pimeng | <a href="https://github.com/Pimeng/tphira-mp" target="_blank" rel="noopener noreferrer">tphira-mp</a> | <a href="https://status.phira.link/" target="_blank" rel="noopener noreferrer">多人联机服务可用性</a></span>
             </div>
             <div className="flex items-center gap-4">
               {isConfigured && (
