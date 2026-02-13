@@ -1,0 +1,223 @@
+import { useState, useEffect } from 'react';
+import { Toaster } from '@/components/ui/sonner';
+import { Button } from '@/components/ui/button';
+import { ConfigDialog } from '@/components/ConfigDialog';
+import { UserMenu } from '@/components/UserMenu';
+import { ProtectedPanel } from '@/components/ProtectedPanel';
+import { PublicApiPanel } from '@/sections/PublicApiPanel';
+import { AdminApiPanel } from '@/sections/AdminApiPanel';
+import { OtpPanel } from '@/sections/OtpPanel';
+import { ContestPanel } from '@/sections/ContestPanel';
+import { apiService } from '@/services/api';
+import { phiraApiService } from '@/services/phiraApi';
+import { 
+  Server, 
+  Globe, 
+  Shield, 
+  Key, 
+  Trophy,
+  Settings,
+  Code2,
+  Menu,
+  X
+} from 'lucide-react';
+
+type TabType = 'public' | 'admin' | 'contest' | 'otp';
+
+function App() {
+  const [activeTab, setActiveTab] = useState<TabType>('public');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // 加载配置
+    const savedUrl = localStorage.getItem('api_base_url') || '';
+    const savedToken = localStorage.getItem('api_admin_token') || '';
+    const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
+    
+    apiService.setConfig({
+      baseUrl: savedUrl,
+      adminToken: savedUseToken ? savedToken : '',
+    });
+    
+    setIsConfigured(!!savedUrl);
+
+    // 检查登录状态
+    const phiraToken = phiraApiService.getUserToken();
+    setIsLoggedIn(!!phiraToken);
+  }, []);
+
+  const handleConfigChange = () => {
+    const savedUrl = localStorage.getItem('api_base_url') || '';
+    setIsConfigured(!!savedUrl);
+  };
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+  };
+
+  const tabs = [
+    { id: 'public' as TabType, label: '公共接口', icon: Globe },
+    { id: 'admin' as TabType, label: '管理员', icon: Shield },
+    { id: 'contest' as TabType, label: '比赛', icon: Trophy },
+    { id: 'otp' as TabType, label: '验证码', icon: Key },
+  ];
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'public':
+        return <PublicApiPanel />;
+      case 'admin':
+        return (
+          <ProtectedPanel>
+            <AdminApiPanel />
+          </ProtectedPanel>
+        );
+      case 'contest':
+        return (
+          <ProtectedPanel>
+            <ContestPanel />
+          </ProtectedPanel>
+        );
+      case 'otp':
+        return <OtpPanel />;
+      default:
+        return <PublicApiPanel />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card sticky top-0 z-50 animate-fade-in">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary rounded-lg transition-transform hover:scale-105">
+                <Server className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Phira 后台管理面板</h1>
+                <p className="text-sm text-muted-foreground">
+                  HTTP 服务管理与调试工具
+                </p>
+              </div>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-3">
+              <ConfigDialog onConfigChange={handleConfigChange}>
+                <Button variant="outline" size="sm" className="relative">
+                  <Settings className="h-4 w-4 mr-2" />
+                  API 配置
+                  {isConfigured && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+                  )}
+                </Button>
+              </ConfigDialog>
+              <UserMenu onLoginSuccess={handleLoginSuccess} />
+            </div>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pt-4 border-t space-y-3 animate-slide-in">
+              <div className="flex items-center gap-3">
+                <ConfigDialog onConfigChange={handleConfigChange}>
+                  <Button variant="outline" size="sm" className="flex-1 relative">
+                    <Settings className="h-4 w-4 mr-2" />
+                    API 配置
+                    {isConfigured && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                    )}
+                  </Button>
+                </ConfigDialog>
+                <UserMenu onLoginSuccess={handleLoginSuccess} />
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Navigation Tabs */}
+      <nav className="border-b bg-card/50 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="container mx-auto px-4">
+          <div className="flex gap-1 overflow-x-auto py-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+                    transition-all duration-200 whitespace-nowrap relative
+                    ${isActive 
+                      ? 'text-primary bg-primary/10' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }
+                  `}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6">
+        <div key={activeTab} className="animate-slide-in">
+          {renderContent()}
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t mt-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Code2 className="h-4 w-4" />
+              <span>Phira HTTP API 管理工具</span>
+            </div>
+            <div className="flex items-center gap-4">
+              {isConfigured && (
+                <span className="flex items-center gap-1 text-green-600">
+                  <span className="w-2 h-2 bg-green-500 rounded-full" />
+                  API 已配置
+                </span>
+              )}
+              {isLoggedIn && (
+                <span className="flex items-center gap-1 text-blue-600">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                  已登录
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      <Toaster position="top-right" />
+    </div>
+  );
+}
+
+export default App;

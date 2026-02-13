@@ -1,0 +1,90 @@
+// API 类型定义
+
+export interface ApiConfig {
+  baseUrl: string;
+  adminToken: string;
+}
+
+export interface Room {
+  roomid: string;
+  max_users: number;
+  live: boolean;
+  locked: boolean;
+  cycle: boolean;
+  host: { id: number; name: string };
+  state: {
+    type: 'select_chart' | 'playing' | 'waiting';
+    results_count?: number;
+    aborted_count?: number;
+    finished_users?: number[];
+    aborted_users?: number[];
+  };
+  chart: { id: number; name: string };
+  users: RoomUser[];
+  monitors: any[];
+}
+
+export interface RoomUser {
+  id: number;
+  name: string;
+  connected: boolean;
+  is_host: boolean;
+  game_time: number;
+  language: string;
+  finished?: boolean;
+  aborted?: boolean;
+  record_id?: number;
+}
+
+export interface PublicRoom {
+  roomid: string;
+  cycle: boolean;
+  lock: boolean;
+  host: { name: string; id: string };
+  state: string;
+  chart: { name: string; id: string };
+  players: { name: string; id: number }[];
+}
+
+export interface UserInfo {
+  id: number;
+  name: string;
+  monitor: boolean;
+  connected: boolean;
+  room: string;
+  banned: boolean;
+}
+
+export interface ReplayChart {
+  chartId: number;
+  replays: { timestamp: number; recordId: number }[];
+}
+
+export interface ReplayAuthResponse {
+  ok: boolean;
+  userId: number;
+  charts: ReplayChart[];
+  sessionToken: string;
+  expiresAt: number;
+}
+
+export interface ApiResponse<T = any> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface OtpRequestResponse {
+  ok: boolean;
+  ssid: string;
+  expiresIn: number;
+  error?: string;
+}
+
+export interface OtpVerifyResponse {
+  ok: boolean;
+  token: string;
+  expiresAt: number;
+  expiresIn: number;
+  error?: string;
+}
