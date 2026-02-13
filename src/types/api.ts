@@ -88,3 +88,22 @@ export interface OtpVerifyResponse {
   expiresIn: number;
   error?: string;
 }
+
+export interface CurrentUserInfo {
+  id: number;
+  name: string;
+  avatar: string;
+  badges: string[];
+  language: string;
+  bio: string | null;
+  exp: number;
+  rks: number;
+  joined: string;
+  last_login: string;
+  roles: number;
+  banned: boolean;
+  login_banned: boolean;
+  follower_count: number;
+  following_count: number;
+  email: string;
+}

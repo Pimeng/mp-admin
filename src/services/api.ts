@@ -5,7 +5,8 @@ import type {
   UserInfo, 
   ReplayAuthResponse, 
   OtpRequestResponse, 
-  OtpVerifyResponse 
+  OtpVerifyResponse,
+  CurrentUserInfo
 } from '@/types/api';
 
 class ApiService {
@@ -232,6 +233,24 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ force }),
     });
+  }
+
+  // ========== Phira 用户信息 ==========
+
+  // 获取当前登录用户信息（使用 adminToken 作为 Bearer token）
+  async getCurrentUser(): Promise<CurrentUserInfo> {
+    const response = await fetch('https://phira.5wyxi.com/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.config.adminToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('获取用户信息失败');
+    }
+    
+    return response.json();
   }
 }
 

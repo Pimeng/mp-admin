@@ -8,11 +8,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Copy, Check } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { User, LogOut, Copy, Check, Star, Mail, Calendar } from 'lucide-react';
 import { phiraApiService } from '@/services/phiraApi';
+import { apiService } from '@/services/api';
 import { LoginDialog } from './LoginDialog';
 import { toast } from 'sonner';
+import type { CurrentUserInfo } from '@/types/api';
 
 interface UserMenuProps {
   onLoginSuccess?: () => void;
@@ -22,16 +25,32 @@ export function UserMenu({ onLoginSuccess }: UserMenuProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUserInfo | null>(null);
 
   useEffect(() => {
     checkLoginStatus();
   }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchCurrentUser();
+    }
+  }, [isLoggedIn]);
 
   const checkLoginStatus = () => {
     const token = phiraApiService.getUserToken();
     const id = phiraApiService.getUserId();
     setIsLoggedIn(!!token);
     setUserId(id);
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const userInfo = await apiService.getCurrentUser();
+      setCurrentUser(userInfo);
+    } catch (error) {
+      console.error('获取用户信息失败:', error);
+    }
   };
 
   const handleLoginSuccess = () => {
@@ -71,19 +90,61 @@ export function UserMenu({ onLoginSuccess }: UserMenuProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Avatar className="h-6 w-6">
+            {currentUser?.avatar ? (
+              <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
+            ) : null}
             <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-              {userId.toString().slice(0, 2)}
+              {currentUser?.name?.[0]?.toUpperCase() || userId.toString().slice(0, 2)}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden sm:inline">用户 {userId}</span>
+          <span className="hidden sm:inline">
+            {currentUser?.name || `用户 ${userId}`}
+          </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>账号信息</DropdownMenuLabel>
-        <DropdownMenuItem className="flex justify-between">
-          <span className="text-muted-foreground">ID:</span>
-          <span>{userId}</span>
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{currentUser?.name || '用户'}</p>
+            <p className="text-xs text-muted-foreground">ID: {userId}</p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        
+        {currentUser && (
+          <>
+            <div className="px-2 py-2 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Star className="h-3 w-3" />
+                  RKS
+                </span>
+                <span className="font-medium">{currentUser.rks.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  邮箱
+                </span>
+                <span className="text-xs truncate max-w-[120px]">{currentUser.email}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  加入时间
+                </span>
+                <span className="text-xs">{new Date(currentUser.joined).toLocaleDateString()}</span>
+              </div>
+              {currentUser.banned && (
+                <Badge variant="destructive" className="w-full justify-center">
+                  账号已被封禁
+                </Badge>
+              )}
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        
         <DropdownMenuItem onClick={copyToken} className="cursor-pointer">
           <span className="flex-1">复制 TOKEN</span>
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
