@@ -15,7 +15,11 @@ import {
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
 
-export function OtpPanel() {
+interface OtpPanelProps {
+  onSuccess?: () => void;
+}
+
+export function OtpPanel({ onSuccess }: OtpPanelProps) {
   const [ssid, setSsid] = useState('');
   const [otp, setOtp] = useState('');
   const [tempToken, setTempToken] = useState('');
@@ -66,6 +70,7 @@ export function OtpPanel() {
         localStorage.setItem('api_admin_token', data.token);
         localStorage.setItem('api_use_token', 'true');
         
+        onSuccess?.();
         toast.success('验证成功，临时 TOKEN 已生效');
       } else {
         toast.error('验证失败：' + (data as any).error);

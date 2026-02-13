@@ -29,6 +29,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [configKey, setConfigKey] = useState(0);
 
   useEffect(() => {
     // 加载配置
@@ -51,6 +52,7 @@ function App() {
   const handleConfigChange = () => {
     const savedUrl = localStorage.getItem('api_base_url') || '';
     setIsConfigured(!!savedUrl);
+    setConfigKey(prev => prev + 1);
   };
 
   const handleLoginSuccess = () => {
@@ -81,7 +83,7 @@ function App() {
           </ProtectedPanel>
         );
       case 'otp':
-        return <OtpPanel />;
+        return <OtpPanel onSuccess={handleConfigChange} />;
       default:
         return <PublicApiPanel />;
     }
@@ -184,7 +186,7 @@ function App() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <div key={activeTab} className="animate-slide-in">
+        <div key={`${activeTab}-${configKey}`} className="animate-slide-in">
           {renderContent()}
         </div>
       </main>
