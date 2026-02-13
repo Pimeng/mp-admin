@@ -19,6 +19,14 @@ class ApiService {
     return this.config;
   }
 
+  getBaseUrl(): string {
+    return this.config.baseUrl;
+  }
+
+  getAdminToken(): string {
+    return this.config.adminToken;
+  }
+
   isConfigured(): boolean {
     return !!this.config.baseUrl;
   }

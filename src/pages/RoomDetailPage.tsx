@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,10 +22,13 @@ import {
   Settings,
   ExternalLink,
   Loader2,
-  User
+  User,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { phiraApiService, type UserDetailInfo, type ChartInfo } from '@/services/phiraApi';
+import { webSocketService } from '@/services/websocket';
 import { toast } from 'sonner';
 import { UserDetailDialog } from '@/components/UserDetailDialog';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
@@ -35,6 +38,17 @@ import type { Room } from '@/types/api';
 interface MonitorInfo {
   name?: string;
   id?: number;
+}
+
+interface ChatMessage {
+  user: number;
+  content: string;
+  timestamp: number;
+}
+
+interface RoomLogMessage {
+  message: string;
+  timestamp: number;
 }
 
 export function RoomDetailPage() {
@@ -47,6 +61,10 @@ export function RoomDetailPage() {
   const [chartInfo, setChartInfo] = useState<ChartInfo | null>(null);
   const [loadingHost, setLoadingHost] = useState(false);
   const [loadingChart, setLoadingChart] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [wsSubscribed, setWsSubscribed] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   
   // 弹窗状态
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -54,10 +72,8 @@ export function RoomDetailPage() {
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
-  
-  // 自动刷新
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 初始加载房间数据
   const fetchRoomDetail = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
@@ -117,25 +133,109 @@ export function RoomDetailPage() {
     }
   };
 
-  // 自动刷新
-  useEffect(() => {
-    const hasToken = apiService.hasAdminToken();
-    if (hasToken && roomId) {
-      refreshIntervalRef.current = setInterval(() => {
-        fetchRoomDetail();
-      }, 5000); // 每5秒刷新一次
-    }
-    
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, [roomId, fetchRoomDetail]);
-
+  // 初始加载
   useEffect(() => {
     fetchRoomDetail();
   }, [fetchRoomDetail]);
+
+  // WebSocket 连接和订阅
+  useEffect(() => {
+    if (!roomId) return;
+
+    const baseUrl = apiService.getBaseUrl();
+    if (!baseUrl) return;
+
+    // 设置 WebSocket URL
+    webSocketService.setBaseUrl(baseUrl);
+
+    // 连接 WebSocket
+    webSocketService.connect().then(() => {
+      console.log('WebSocket connected, subscribing as admin');
+      // 使用管理员订阅获取所有房间更新
+      webSocketService.adminSubscribe();
+    }).catch((error) => {
+      console.error('WebSocket connection failed:', error);
+    });
+
+    // 监听连接状态
+    const unsubscribeConnect = webSocketService.onConnect(() => {
+      setWsConnected(true);
+      // 连接成功后订阅管理员频道
+      webSocketService.adminSubscribe();
+    });
+
+    const unsubscribeDisconnect = webSocketService.onDisconnect(() => {
+      setWsConnected(false);
+      setWsSubscribed(false);
+    });
+
+    // 监听订阅状态
+    const unsubscribeSubscribe = webSocketService.onSubscribe((success) => {
+      setWsSubscribed(success);
+      if (success) {
+        toast.success('WebSocket 已连接');
+      } else {
+        toast.error('WebSocket 订阅失败，请检查管理员 Token');
+      }
+    });
+
+    // 监听消息
+    const unsubscribeMessage = webSocketService.onMessage((message) => {
+      if (message.type === 'admin_update') {
+        const adminMessage = message as { data: { changes: { rooms: Room[] } } };
+        const updatedRoom = adminMessage.data.changes.rooms.find(r => r.roomid === roomId);
+        if (updatedRoom) {
+          setRoom(updatedRoom);
+          // 更新房主信息
+          if (updatedRoom.host?.id && updatedRoom.host.id !== hostInfo?.id) {
+            fetchHostInfo(updatedRoom.host.id);
+          }
+          // 更新谱面信息
+          if (updatedRoom.chart?.id && updatedRoom.chart.id !== chartInfo?.id) {
+            fetchChartInfo(updatedRoom.chart.id);
+          }
+        }
+      }
+      
+      // 处理公屏消息
+      if (message.type === 'room_message') {
+        const roomMsg = message as { data: ChatMessage };
+        setChatMessages(prev => [...prev, {
+          user: roomMsg.data.user,
+          content: roomMsg.data.content,
+          timestamp: roomMsg.data.timestamp,
+        }]);
+      }
+      
+      // 处理房间日志消息
+      if (message.type === 'room_log') {
+        const logMsg = message as { data: RoomLogMessage };
+        setChatMessages(prev => [...prev, {
+          user: 0, // 系统消息
+          content: logMsg.data.message,
+          timestamp: logMsg.data.timestamp,
+        }]);
+      }
+    });
+
+    // 初始连接状态
+    setWsConnected(webSocketService.isConnected());
+
+    return () => {
+      unsubscribeConnect();
+      unsubscribeDisconnect();
+      unsubscribeSubscribe();
+      unsubscribeMessage();
+      webSocketService.adminUnsubscribe();
+    };
+  }, [roomId]);
+
+  // 自动滚动到最新消息
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   const handleDisbandRoom = async () => {
     if (!roomId) return;
@@ -250,9 +350,20 @@ export function RoomDetailPage() {
               {getStateBadge(room.state.type)}
               {room.locked && <Badge variant="destructive">锁定</Badge>}
               {room.cycle && <Badge variant="outline">循环</Badge>}
-              {apiService.hasAdminToken() && (
+              {wsSubscribed ? (
                 <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                  自动刷新中
+                  <Wifi className="h-3 w-3 mr-1" />
+                  实时
+                </Badge>
+              ) : wsConnected ? (
+                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                  <WifiOff className="h-3 w-3 mr-1" />
+                  未授权
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20">
+                  <WifiOff className="h-3 w-3 mr-1" />
+                  离线
                 </Badge>
               )}
             </div>
@@ -529,13 +640,57 @@ export function RoomDetailPage() {
               </CardContent>
             </Card>
 
+            {/* 公屏消息 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  公屏消息 ({chatMessages.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div 
+                  ref={chatScrollRef}
+                  className="h-[200px] overflow-y-auto space-y-2 pr-2"
+                >
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center text-muted-foreground text-sm py-8">
+                      暂无消息
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-2 rounded-lg text-sm ${
+                          msg.user === 0 
+                            ? 'bg-blue-50 dark:bg-blue-950' 
+                            : 'bg-muted'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`font-medium ${
+                            msg.user === 0 ? 'text-blue-600' : 'text-foreground'
+                          }`}>
+                            {msg.user === 0 ? '系统' : `玩家 ${msg.user}`}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
+                          </span>
+                        </div>
+                        <div className="break-words">{msg.content}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
                   发送消息
                 </CardTitle>
-                <CardDescription>向房间发送系统消息</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <textarea
@@ -572,6 +727,12 @@ export function RoomDetailPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Live模式</span>
                     <span>{room.live ? '开启' : '关闭'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">实时更新</span>
+                    <span className={wsSubscribed ? 'text-green-600' : wsConnected ? 'text-yellow-600' : 'text-gray-400'}>
+                      {wsSubscribed ? '已连接' : wsConnected ? '未授权' : '未连接'}
+                    </span>
                   </div>
                 </div>
               </CardContent>
