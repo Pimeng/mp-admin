@@ -59,7 +59,7 @@ export function RecordDetailDialog({ recordId, open, onOpenChange }: RecordDetai
 
   const handleOpenChartPage = () => {
     if (recordInfo?.chart) {
-      window.open(`https://phira.5wyxi.com/chart/${recordInfo.chart}`, '_blank');
+      window.open(`https://phira.moe/chart/${recordInfo.chart}`, '_blank');
     }
   };
 

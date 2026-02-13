@@ -46,7 +46,7 @@ export function ChartDetailDialog({ chartId, open, onOpenChange }: ChartDetailDi
   }, [open, chartId, fetchChartInfo]);
 
   const handleOpenChartPage = () => {
-    window.open(`https://phira.5wyxi.com/chart/${chartId}`, '_blank');
+    window.open(`https://phira.moe/chart/${chartId}`, '_blank');
   };
 
   const formatDate = (dateStr: string) => {

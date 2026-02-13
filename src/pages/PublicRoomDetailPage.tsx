@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
+import { UserDetailDialog } from '@/components/UserDetailDialog';
+import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import type { PublicRoom } from '@/types/api';
 
 interface ExtendedPublicRoom extends PublicRoom {
@@ -34,6 +36,14 @@ export function PublicRoomDetailPage() {
   const [room, setRoom] = useState<ExtendedPublicRoom | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  
+  // 用户详情弹窗状态
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  
+  // 谱面详情弹窗状态
+  const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
+  const [chartDialogOpen, setChartDialogOpen] = useState(false);
 
   // 获取房间数据
   const fetchRoomDetail = useCallback(async () => {
@@ -103,6 +113,16 @@ export function PublicRoomDetailPage() {
     ) : (
       <WifiOff className="h-4 w-4 text-gray-400" />
     );
+  };
+
+  const handleOpenUserDetail = (userId: number) => {
+    setSelectedUserId(userId);
+    setUserDialogOpen(true);
+  };
+
+  const handleOpenChartDetail = (chartId: number) => {
+    setSelectedChartId(chartId);
+    setChartDialogOpen(true);
   };
 
   if (error) {
@@ -204,26 +224,48 @@ export function PublicRoomDetailPage() {
 
                 <Separator />
 
-                {/* 房主信息 */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Crown className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm text-muted-foreground">房主:</span>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback>{room.host.name?.[0]?.toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{room.host.name}</span>
-                      <span className="text-sm text-muted-foreground">(ID: {room.host.id})</span>
+                {/* 房主信息 - 可点击卡片 */}
+                <div
+                  className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted transition-colors group"
+                  onClick={() => handleOpenUserDetail(parseInt(room.host.id, 10))}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Crown className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm text-muted-foreground">房主:</span>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>{room.host.name?.[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <span className="font-medium block">{room.host.name}</span>
+                          <span className="text-xs text-muted-foreground">ID: {room.host.id}</span>
+                        </div>
+                      </div>
                     </div>
+                    <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                      点击查看详情 →
+                    </span>
                   </div>
+                </div>
 
-                  {/* 谱面信息 */}
-                  <div className="flex items-center gap-3">
-                    <Music className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm text-muted-foreground">当前谱面:</span>
-                    <span className="font-medium">{room.chart.name}</span>
-                    <span className="text-sm text-muted-foreground">(ID: {room.chart.id})</span>
+                {/* 谱面信息 - 可点击卡片 */}
+                <div
+                  className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted transition-colors group"
+                  onClick={() => handleOpenChartDetail(parseInt(room.chart.id, 10))}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Music className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm text-muted-foreground">当前谱面:</span>
+                      <div>
+                        <span className="font-medium block">{room.chart.name}</span>
+                        <span className="text-xs text-muted-foreground">ID: {room.chart.id}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                      点击查看详情 →
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -247,7 +289,8 @@ export function PublicRoomDetailPage() {
                     {room.players?.map((player) => (
                       <div
                         key={player.id}
-                        className="p-3 border rounded-lg flex items-center justify-between"
+                        className="p-3 border rounded-lg flex items-center justify-between hover:border-primary/50 transition-colors cursor-pointer group"
+                        onClick={() => handleOpenUserDetail(player.id)}
                       >
                         <div className="flex items-center gap-3">
                           {getStatusIcon(true)}
@@ -268,6 +311,9 @@ export function PublicRoomDetailPage() {
                         </div>
                         <div className="text-right text-sm">
                           <span className="text-green-600">在线</span>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground mt-1">
+                            点击查看详情
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -335,6 +381,22 @@ export function PublicRoomDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* 用户详情弹窗 */}
+      <UserDetailDialog
+        userId={selectedUserId || 0}
+        open={userDialogOpen}
+        onOpenChange={setUserDialogOpen}
+      />
+
+      {/* 谱面详情弹窗 */}
+      {selectedChartId && (
+        <ChartDetailDialog
+          chartId={selectedChartId}
+          open={chartDialogOpen}
+          onOpenChange={setChartDialogOpen}
+        />
+      )}
     </div>
   );
 }
