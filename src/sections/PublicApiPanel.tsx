@@ -17,8 +17,10 @@ import {
   FileAudio,
   Music,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Globe
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
@@ -29,6 +31,7 @@ import type { ChartInfo } from '@/services/phiraApi';
 const chartCache = new Map<number, ChartInfo>();
 
 export function PublicApiPanel() {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const [userToken, setUserToken] = useState('');
@@ -217,10 +220,19 @@ export function PublicApiPanel() {
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium">{room.roomid}</span>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 items-center">
                             {getStateBadge(room.state)}
                             {room.lock && <Badge variant="destructive" className="text-xs">锁定</Badge>}
                             {room.cycle && <Badge variant="outline" className="text-xs">循环</Badge>}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2"
+                              onClick={() => navigate(`/public/room/${room.roomid}`)}
+                            >
+                              <Globe className="h-3 w-3 mr-1" />
+                              访客视图
+                            </Button>
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1">

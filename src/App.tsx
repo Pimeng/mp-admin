@@ -10,6 +10,7 @@ import { AdminApiPanel } from '@/sections/AdminApiPanel';
 import { OtpPanel } from '@/sections/OtpPanel';
 import { ContestPanel } from '@/sections/ContestPanel';
 import { RoomDetailPage } from '@/pages/RoomDetailPage';
+import { PublicRoomDetailPage } from '@/pages/PublicRoomDetailPage';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { 
@@ -102,9 +103,9 @@ function MainLayout() {
                 <Server className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Phira 后台管理面板</h1>
+                <h1 className="text-xl font-bold">Phira MP</h1>
                 <p className="text-sm text-muted-foreground">
-                  HTTP 服务管理与调试工具
+                  多人联机面板
                 </p>
               </div>
             </div>
@@ -199,7 +200,7 @@ function MainLayout() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Code2 className="h-4 w-4" />
-              <span>Phira HTTP API 管理工具</span>
+              <span>Phira MP | API By Pimeng | <a href="https://github.com/Pimeng/tphira-mp" target="_blank" rel="noopener noreferrer">tphira-mp</a></span>
             </div>
             <div className="flex items-center gap-4">
               {isConfigured && (
@@ -230,6 +231,7 @@ function App() {
       <Routes>
         <Route path="/" element={<MainLayout />} />
         <Route path="/room/:roomId" element={<RoomDetailPage />} />
+        <Route path="/public/room/:roomId" element={<PublicRoomDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
