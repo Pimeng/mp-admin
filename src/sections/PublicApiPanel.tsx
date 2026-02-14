@@ -221,13 +221,25 @@ export function PublicApiPanel() {
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 房间列表
+                {rooms.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {rooms.length} 个房间
+                  </Badge>
+                )}
               </div>
               <Button size="sm" onClick={fetchRooms} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 刷新
               </Button>
             </CardTitle>
-            <CardDescription>获取当前所有房间的基本信息（无需鉴权）</CardDescription>
+            <CardDescription className="flex items-center gap-2">
+              <span>获取当前所有房间的基本信息</span>
+              {rooms.length > 0 && (
+                <span className="text-muted-foreground">
+                  | 总玩家数: {rooms.reduce((sum, room) => sum + (room.players?.length || 0), 0)} 人
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {rooms.length === 0 ? (
