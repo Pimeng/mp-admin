@@ -317,23 +317,25 @@ export function PublicApiPanel() {
                     return (
                       <div
                         key={room.roomid}
-                        className="p-3 border rounded-lg hover:border-primary/50 transition-all duration-200 hover:shadow-sm"
+                        className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm group"
                         style={{ animationDelay: `${index * 0.05}s` }}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium">{room.roomid}</span>
-                          <div className="flex gap-1 items-center">
-                            {getStateBadge(room.state)}
-                            {room.lock && <Badge variant="destructive" className="text-xs">锁定</Badge>}
-                            {room.cycle && <Badge variant="outline" className="text-xs">循环</Badge>}
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              {getStateBadge(room.state)}
+                              {room.lock && <Badge variant="destructive">锁定</Badge>}
+                              {room.cycle && <Badge variant="outline">循环</Badge>}
+                            </div>
                             <Button
-                              size="sm"
                               variant="ghost"
-                              className="h-6 px-2"
+                              size="sm"
+                              className="h-7 w-7 p-0"
                               onClick={() => navigate(`/public/room/${room.roomid}`)}
+                              title="访客视图"
                             >
-                              <Globe className="h-3 w-3 mr-1" />
-                              访客视图
+                              <Globe className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
@@ -344,7 +346,7 @@ export function PublicApiPanel() {
                             <span>
                               {chartInfo ? (
                                 <span className="text-foreground">
-                                  {chartInfo.name} 
+                                  {chartInfo.name}
                                   <span className="text-muted-foreground ml-1">
                                     [{chartInfo.level}] by {chartInfo.charter}
                                   </span>
@@ -356,14 +358,7 @@ export function PublicApiPanel() {
                               )}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span>玩家: {room.players?.length || 0}人</span>
-                            {room.players && room.players.length > 0 && (
-                              <span className="text-xs">
-                                ({room.players.map(p => p.name).join(', ')})
-                              </span>
-                            )}
-                          </div>
+                          <div>玩家: {room.players?.length || 0}人</div>
                         </div>
                       </div>
                     );
