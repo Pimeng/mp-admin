@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
-  Globe
+  Globe,
+  Radio
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
@@ -44,6 +45,12 @@ export function PublicRoomDetailPage() {
   // 谱面详情弹窗状态
   const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
+
+  // WebSocket 状态
+  const [wsConnected, setWsConnected] = useState(false);
+  const [wsLogs, setWsLogs] = useState<string[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 获取房间数据
   const fetchRoomDetail = useCallback(async () => {
@@ -88,7 +95,110 @@ export function PublicRoomDetailPage() {
     fetchRoomDetail();
   }, [fetchRoomDetail]);
 
-  // 自动刷新（每5秒）
+  // WebSocket 连接
+  useEffect(() => {
+    if (!roomId) return;
+
+    const baseUrl = apiService.getBaseUrl();
+    if (!baseUrl) return;
+
+    // 从 http://host:port 转换为 ws://host:port/ws
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws';
+    console.log('[WebSocket] 连接地址:', wsUrl);
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('[WebSocket] 已连接');
+      setWsConnected(true);
+
+      // 订阅房间
+      ws.send(JSON.stringify({
+        type: 'subscribe',
+        roomId: roomId,
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('[WebSocket] 收到消息:', message);
+
+        switch (message.type) {
+          case 'subscribed':
+            console.log('[WebSocket] 已订阅房间:', message.roomId);
+            break;
+
+          case 'room_update':
+            // 更新房间状态
+            if (message.data) {
+              const updatedRoom: ExtendedPublicRoom = {
+                roomid: message.data.roomid,
+                cycle: message.data.cycle,
+                lock: message.data.locked,
+                host: message.data.host,
+                state: message.data.state,
+                chart: message.data.chart,
+                players: message.data.users?.map((u: any) => ({ name: u.name, id: u.id })) || [],
+                max_users: 8,
+                current_users: message.data.users?.length || 0,
+                monitors: message.data.monitors?.length || 0,
+              };
+              setRoom(updatedRoom);
+            }
+            break;
+
+          case 'room_log':
+            // 添加日志
+            setWsLogs(prev => {
+              const newLogs = [`[${new Date(message.data.timestamp).toLocaleTimeString()}] ${message.data.message}`, ...prev];
+              return newLogs.slice(0, 50); // 只保留最近50条
+            });
+            break;
+
+          case 'error':
+            console.error('[WebSocket] 错误:', message.message);
+            break;
+
+          case 'pong':
+            // 心跳响应
+            break;
+        }
+      } catch (error) {
+        console.error('[WebSocket] 解析消息失败:', error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('[WebSocket] 错误:', error);
+      setWsConnected(false);
+    };
+
+    ws.onclose = () => {
+      console.log('[WebSocket] 已断开');
+      setWsConnected(false);
+    };
+
+    // 心跳保持连接
+    heartbeatRef.current = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 25000);
+
+    return () => {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+      }
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'unsubscribe' }));
+        ws.close();
+      }
+    };
+  }, [roomId]);
+
+  // 自动刷新（每5秒）- 作为 WebSocket 的备用
   useEffect(() => {
     const interval = setInterval(() => {
       fetchRoomDetail();
@@ -180,6 +290,10 @@ export function PublicRoomDetailPage() {
                   开放
                 </Badge>
               )}
+              <Badge variant={wsConnected ? "default" : "secondary"} className="gap-1">
+                <Radio className={`h-3 w-3 ${wsConnected ? 'animate-pulse' : ''}`} />
+                {wsConnected ? '实时' : '轮询'}
+              </Badge>
               <Badge variant="outline" className="gap-1">
                 <Globe className="h-3 w-3" />
                 访客视图
@@ -369,6 +483,27 @@ export function PublicRoomDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* WebSocket 日志 */}
+            {wsLogs.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Radio className="h-4 w-4" />
+                    实时日志
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px] overflow-y-auto space-y-1 text-xs">
+                    {wsLogs.map((log, index) => (
+                      <div key={index} className="text-muted-foreground font-mono">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* 提示信息 */}
             <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
