@@ -13,6 +13,7 @@ import { RoomDetailPage } from '@/pages/RoomDetailPage';
 import { PublicRoomDetailPage } from '@/pages/PublicRoomDetailPage';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
+import { version } from '../package.json';
 import { 
   Server, 
   Globe, 
@@ -22,7 +23,8 @@ import {
   Settings,
   Code2,
   Menu,
-  X
+  X,
+  Tag
 } from 'lucide-react';
 
 type TabType = 'public' | 'admin' | 'contest' | 'otp';
@@ -215,6 +217,10 @@ function MainLayout() {
                   已登录
                 </span>
               )}
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Tag className="h-3 w-3" />
+                前端版本 v{version}
+              </span>
             </div>
           </div>
         </div>
