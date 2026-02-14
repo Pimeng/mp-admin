@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -13,18 +11,21 @@ import {
   Trash2, 
   RefreshCw,
   Film,
-  Key,
   FileAudio,
   Music,
   ChevronDown,
   ChevronUp,
-  Globe
+  Globe,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
+import { LoginDialog } from '@/components/LoginDialog';
 import type { PublicRoom, ReplayAuthResponse, ReplayChart } from '@/types/api';
 import type { ChartInfo } from '@/services/phiraApi';
 
@@ -35,11 +36,14 @@ export function PublicApiPanel() {
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userToken, setUserToken] = useState('');
   const [replayData, setReplayData] = useState<ReplayAuthResponse | null>(null);
   const [sessionToken, setSessionToken] = useState('');
   const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
   const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(chartCache);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState<number>(0);
+  const [userName, setUserName] = useState<string>('');
+  const [autoLoading, setAutoLoading] = useState(false);
   
   // 谱面详情弹窗状态
   const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
@@ -74,6 +78,42 @@ export function PublicApiPanel() {
     // 自动加载房间列表
     if (savedUrl) {
       fetchRooms();
+    }
+
+    // 检查登录状态并自动获取回放
+    const token = phiraApiService.getUserToken();
+    const uid = phiraApiService.getUserId();
+    
+    if (token && uid) {
+      setIsLoggedIn(true);
+      setUserId(uid);
+      
+      // 获取用户信息
+      apiService.getCurrentUser().then((userInfo) => {
+        setUserName(userInfo.name);
+      }).catch(() => {
+        // 获取失败时不影响其他功能
+      });
+      
+      // 如果API已配置，自动获取回放
+      if (savedUrl) {
+        setAutoLoading(true);
+        apiService.replayAuth(token).then((data) => {
+          if (data.ok) {
+            setReplayData(data);
+            setSessionToken(data.sessionToken);
+            toast.success(`已自动加载 ${data.charts?.length || 0} 个谱面的回放记录`);
+            // 预加载谱面信息
+            data.charts?.forEach((chart: ReplayChart) => {
+              loadChartInfo(chart.chartId);
+            });
+          }
+        }).catch((err) => {
+          console.error('[PublicApiPanel] 自动获取回放失败:', err);
+        }).finally(() => {
+          setAutoLoading(false);
+        });
+      }
     }
   }, []);
 
@@ -117,50 +157,71 @@ export function PublicApiPanel() {
       });
       
       toast.success(`获取到 ${data.total} 个房间`);
-    } catch (error) {
+    } catch {
       toast.error('获取房间列表失败');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReplayAuth = async () => {
+  const handleLoginSuccess = () => {
+    const token = phiraApiService.getUserToken();
+    const uid = phiraApiService.getUserId();
+    if (token && uid) {
+      setIsLoggedIn(true);
+      setUserId(uid);
+      // 获取用户信息
+      apiService.getCurrentUser().then((userInfo) => {
+        setUserName(userInfo.name);
+      }).catch(() => {
+        // 获取失败时不影响其他功能
+      });
+      // 登录成功后自动获取回放
+      handleFetchReplay();
+    }
+  };
+
+  const handleLogout = () => {
+    phiraApiService.clearAuth();
+    setIsLoggedIn(false);
+    setUserId(0);
+    setUserName('');
+    setReplayData(null);
+    setSessionToken('');
+    toast.success('已退出登录');
+  };
+
+  const handleFetchReplay = async () => {
     const config = apiService.getConfig();
     if (!config.baseUrl) {
       toast.error('请先配置 API 地址');
       return;
     }
 
-    // 如果没有输入token，尝试使用登录的token
-    let tokenToUse = userToken;
+    const tokenToUse = phiraApiService.getUserToken();
     if (!tokenToUse) {
-      const phiraToken = phiraApiService.getUserToken();
-      if (phiraToken) {
-        tokenToUse = phiraToken;
-      }
-    }
-
-    if (!tokenToUse) {
-      toast.error('请输入用户 TOKEN 或先登录 Phira 账号');
+      toast.error('请先登录 Phira 账号');
       return;
     }
 
+    setAutoLoading(true);
     try {
       const data = await apiService.replayAuth(tokenToUse);
       if (data.ok) {
         setReplayData(data);
         setSessionToken(data.sessionToken);
-        toast.success('认证成功');
-        
+        toast.success(`已加载 ${data.charts?.length || 0} 个谱面的回放记录`);
         // 预加载谱面信息
         data.charts?.forEach((chart: ReplayChart) => {
           loadChartInfo(chart.chartId);
         });
       } else {
-        toast.error('认证失败: ' + (data as any).error);
+        toast.error('获取回放失败');
       }
-    } catch (error) {
-      toast.error('认证请求失败');
+    } catch {
+      toast.error('获取回放请求失败');
+    } finally {
+      setAutoLoading(false);
     }
   };
 
@@ -174,11 +235,11 @@ export function PublicApiPanel() {
       const result = await apiService.deleteReplay(sessionToken, chartId, timestamp);
       if (result.ok) {
         toast.success('回放已删除');
-        handleReplayAuth();
+        handleFetchReplay();
       } else {
         toast.error('删除失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('删除请求失败');
     }
   };
@@ -325,22 +386,45 @@ export function PublicApiPanel() {
             <CardDescription>查看和下载用户的游戏回放记录</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="userToken" className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                用户 TOKEN
-              </Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                {isLoggedIn ? (
+                  <span className="text-sm">
+                    已登录 <span className="font-medium">{userName || `用户 ${userId}`}</span>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">未登录</span>
+                )}
+              </div>
               <div className="flex gap-2">
-                <Input
-                  id="userToken"
-                  placeholder="输入 Phira 用户 TOKEN（留空使用登录账号）"
-                  value={userToken}
-                  onChange={(e) => setUserToken(e.target.value)}
-                />
-                <Button onClick={handleReplayAuth}>
-                  <Play className="h-4 w-4 mr-2" />
-                  认证
-                </Button>
+                {isLoggedIn ? (
+                  <>
+                    <Button 
+                      size="sm" 
+                      onClick={handleFetchReplay} 
+                      disabled={autoLoading}
+                    >
+                      <Play className={`h-4 w-4 mr-2 ${autoLoading ? 'animate-spin' : ''}`} />
+                      {autoLoading ? '加载中...' : '获取回放'}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      退出
+                    </Button>
+                  </>
+                ) : (
+                  <LoginDialog onLoginSuccess={handleLoginSuccess}>
+                    <Button size="sm">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      登录
+                    </Button>
+                  </LoginDialog>
+                )}
               </div>
             </div>
 
@@ -366,29 +450,35 @@ export function PublicApiPanel() {
                           key={chart.chartId}
                           className="p-3 border rounded-lg transition-all duration-200"
                         >
-                          <div className="flex items-center justify-between">
+                          <div 
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => toggleChartExpand(chart.chartId)}
+                          >
                             <div className="flex items-center gap-2">
                               <Music className="h-4 w-4 text-muted-foreground" />
                               <span 
-                                className="font-medium cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => handleOpenChartDetail(chart.chartId)}
+                                className="font-medium hover:text-primary transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenChartDetail(chart.chartId);
+                                }}
                               >
                                 {chartInfo ? chartInfo.name : `谱面 ID: ${chart.chartId}`}
                               </span>
                               {chartInfo && (
                                 <Badge 
                                   variant="secondary" 
-                                  className="text-xs cursor-pointer hover:bg-secondary/80"
-                                  onClick={() => handleOpenChartDetail(chart.chartId)}
+                                  className="text-xs hover:bg-secondary/80"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenChartDetail(chart.chartId);
+                                  }}
                                 >
                                   {chartInfo.level}
                                 </Badge>
                               )}
                             </div>
-                            <div 
-                              className="flex items-center gap-2 cursor-pointer"
-                              onClick={() => toggleChartExpand(chart.chartId)}
-                            >
+                            <div className="flex items-center gap-2">
                               <Badge variant="outline">{chart.replays.length} 个回放</Badge>
                               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </div>
