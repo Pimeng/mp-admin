@@ -82,13 +82,52 @@ export interface UserDetailInfo {
 
 const PHIRA_API_BASE = 'https://phira.5wyxi.com';
 
+const STORAGE_KEY_TOKEN = 'phira_user_token';
+const STORAGE_KEY_USER_ID = 'phira_user_id';
+
 class PhiraApiService {
   private userToken: string = '';
   private userId: number = 0;
 
+  constructor() {
+    // 从 localStorage 加载保存的登录信息
+    this.loadFromStorage();
+  }
+
+  private loadFromStorage() {
+    if (typeof window === 'undefined') return;
+    
+    const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const savedUserId = localStorage.getItem(STORAGE_KEY_USER_ID);
+    
+    if (savedToken) {
+      this.userToken = savedToken;
+    }
+    if (savedUserId) {
+      this.userId = parseInt(savedUserId, 10);
+    }
+  }
+
+  private saveToStorage() {
+    if (typeof window === 'undefined') return;
+    
+    if (this.userToken) {
+      localStorage.setItem(STORAGE_KEY_TOKEN, this.userToken);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+    }
+    
+    if (this.userId) {
+      localStorage.setItem(STORAGE_KEY_USER_ID, this.userId.toString());
+    } else {
+      localStorage.removeItem(STORAGE_KEY_USER_ID);
+    }
+  }
+
   setUserToken(token: string, userId: number = 0) {
     this.userToken = token;
     if (userId) this.userId = userId;
+    this.saveToStorage();
   }
 
   getUserToken(): string {
@@ -102,6 +141,7 @@ class PhiraApiService {
   clearAuth() {
     this.userToken = '';
     this.userId = 0;
+    this.saveToStorage();
   }
 
   // 登录获取 token
