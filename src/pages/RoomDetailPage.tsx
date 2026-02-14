@@ -479,8 +479,54 @@ export function RoomDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-3 bg-muted rounded-lg">
-                    <div className="text-sm text-muted-foreground">最大人数</div>
+                  <div 
+                    className="p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors group"
+                    onClick={async () => {
+                      const result = await Swal.fire({
+                        title: '修改最大人数',
+                        input: 'number',
+                        inputLabel: '请输入新的最大人数',
+                        inputValue: room?.max_users?.toString() || '8',
+                        inputAttributes: {
+                          min: '1',
+                          max: '64',
+                          step: '1'
+                        },
+                        showCancelButton: true,
+                        confirmButtonText: '确认',
+                        cancelButtonText: '取消',
+                        inputValidator: (value) => {
+                          if (!value) {
+                            return '请输入人数';
+                          }
+                          const num = parseInt(value, 10);
+                          if (num < 1 || num > 64) {
+                            return '最大人数必须在 1-64 之间';
+                          }
+                          return null;
+                        }
+                      });
+                      
+                      if (result.isConfirmed && result.value) {
+                        const maxUsers = parseInt(result.value, 10);
+                        try {
+                          const apiResult = await apiService.setRoomMaxUsers(roomId!, maxUsers);
+                          if (apiResult.ok) {
+                            toast.success(`最大人数已设置为 ${maxUsers}`);
+                            fetchRoomDetail();
+                          } else {
+                            toast.error('设置失败');
+                          }
+                        } catch {
+                          toast.error('请求失败');
+                        }
+                      }
+                    }}
+                  >
+                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                      最大人数
+                      <Settings className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                     <div className="text-lg font-semibold">{room.max_users}</div>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
@@ -721,54 +767,6 @@ export function RoomDetailPage() {
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   刷新数据
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={async () => {
-                    const result = await Swal.fire({
-                      title: '修改最大人数',
-                      input: 'number',
-                      inputLabel: '请输入新的最大人数',
-                      inputValue: room?.max_users?.toString() || '8',
-                      inputAttributes: {
-                        min: '1',
-                        max: '64',
-                        step: '1'
-                      },
-                      showCancelButton: true,
-                      confirmButtonText: '确认',
-                      cancelButtonText: '取消',
-                      inputValidator: (value) => {
-                        if (!value) {
-                          return '请输入人数';
-                        }
-                        const num = parseInt(value, 10);
-                        if (num < 1 || num > 64) {
-                          return '最大人数必须在 1-64 之间';
-                        }
-                        return null;
-                      }
-                    });
-                    
-                    if (result.isConfirmed && result.value) {
-                      const maxUsers = parseInt(result.value, 10);
-                      try {
-                        const apiResult = await apiService.setRoomMaxUsers(roomId!, maxUsers);
-                        if (apiResult.ok) {
-                          toast.success(`最大人数已设置为 ${maxUsers}`);
-                          fetchRoomDetail();
-                        } else {
-                          toast.error('设置失败');
-                        }
-                      } catch {
-                        toast.error('请求失败');
-                      }
-                    }
-                  }}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  修改最大人数
                 </Button>
                 <Button 
                   variant="destructive" 

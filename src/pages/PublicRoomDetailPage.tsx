@@ -71,12 +71,12 @@ export function PublicRoomDetailPage() {
         setRoom(extendedRoom);
 
         // 可选：预加载房主和谱面信息到缓存
-        const hostId = parseInt(foundRoom.host.id, 10);
+        const hostId = parseInt(foundRoom.host?.id, 10);
         if (!isNaN(hostId)) {
           phiraApiService.getUserInfoCached(hostId).catch(() => {});
         }
 
-        const chartId = parseInt(foundRoom.chart.id, 10);
+        const chartId = parseInt(foundRoom.chart?.id, 10);
         if (!isNaN(chartId)) {
           phiraApiService.getChartInfoCached(chartId).catch(() => {});
         }
@@ -137,9 +137,9 @@ export function PublicRoomDetailPage() {
                 roomid: message.data.roomid,
                 cycle: message.data.cycle,
                 lock: message.data.locked,
-                host: message.data.host,
-                state: message.data.state,
-                chart: message.data.chart,
+                host: message.data.host || { id: '0', name: '未知' },
+                state: message.data.state || 'waiting',
+                chart: message.data.chart || { id: '0', name: '未选择' },
                 players: message.data.users?.map((u: any) => ({ name: u.name, id: u.id })) || [],
                 max_users: 8,
                 current_users: message.data.users?.length || 0,
@@ -365,21 +365,30 @@ export function PublicRoomDetailPage() {
 
                 {/* 谱面信息 - 可点击卡片 */}
                 <div
-                  className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted transition-colors group"
-                  onClick={() => handleOpenChartDetail(parseInt(room.chart.id, 10))}
+                  className={`p-3 bg-muted/50 rounded-lg transition-colors group ${room.chart?.id && room.chart.id !== '0' ? 'cursor-pointer hover:bg-muted' : 'cursor-default opacity-60'}`}
+                  onClick={() => {
+                    const chartId = parseInt(room.chart?.id, 10);
+                    if (!isNaN(chartId) && chartId > 0) {
+                      handleOpenChartDetail(chartId);
+                    }
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Music className="h-4 w-4 text-blue-500" />
                       <span className="text-sm text-muted-foreground">当前谱面:</span>
                       <div>
-                        <span className="font-medium block">{room.chart.name}</span>
-                        <span className="text-xs text-muted-foreground">ID: {room.chart.id}</span>
+                        <span className="font-medium block">{room.chart?.name || '未选择'}</span>
+                        {room.chart?.id && room.chart.id !== '0' && (
+                          <span className="text-xs text-muted-foreground">ID: {room.chart.id}</span>
+                        )}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                      点击查看详情 →
-                    </span>
+                    {room.chart?.id && room.chart.id !== '0' && (
+                      <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        点击查看详情 →
+                      </span>
+                    )}
                   </div>
                 </div>
               </CardContent>
