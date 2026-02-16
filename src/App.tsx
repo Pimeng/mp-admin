@@ -13,12 +13,13 @@ import { RoomDetailPage } from '@/pages/RoomDetailPage';
 import { PublicRoomDetailPage } from '@/pages/PublicRoomDetailPage';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
+import { useRouteRestore } from '@/hooks/useRouteRestore';
 import { version } from '../package.json';
-import { 
-  Server, 
-  Globe, 
-  Shield, 
-  Key, 
+import {
+  Server,
+  Globe,
+  Shield,
+  Key,
   Trophy,
   Settings,
   Code2,
@@ -231,13 +232,19 @@ function MainLayout() {
   );
 }
 
+// 路由恢复包装组件
+function RouteRestoreWrapper({ children }: { children: React.ReactNode }) {
+  useRouteRestore();
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />} />
-        <Route path="/room/:roomId" element={<RoomDetailPage />} />
-        <Route path="/public/room/:roomId" element={<PublicRoomDetailPage />} />
+        <Route path="/" element={<RouteRestoreWrapper><MainLayout /></RouteRestoreWrapper>} />
+        <Route path="/room/:roomId" element={<RouteRestoreWrapper><RoomDetailPage /></RouteRestoreWrapper>} />
+        <Route path="/public/room/:roomId" element={<RouteRestoreWrapper><PublicRoomDetailPage /></RouteRestoreWrapper>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
