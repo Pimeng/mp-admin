@@ -14,6 +14,7 @@ import { PublicRoomDetailPage } from '@/pages/PublicRoomDetailPage';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { useRouteRestore } from '@/hooks/useRouteRestore';
+import { useUrlConfig } from '@/hooks/useUrlConfig';
 import { version } from '../package.json';
 import {
   Server,
@@ -25,7 +26,8 @@ import {
   Code2,
   Menu,
   X,
-  Tag
+  Tag,
+  Loader2
 } from 'lucide-react';
 
 type TabType = 'public' | 'admin' | 'contest' | 'otp';
@@ -36,6 +38,7 @@ function MainLayout() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [configKey, setConfigKey] = useState(0);
+  const { hasUrlConfig, isValidating, applyConfig } = useUrlConfig();
 
   useEffect(() => {
     // 加载配置
@@ -54,6 +57,17 @@ function MainLayout() {
     const phiraToken = phiraApiService.getUserToken();
     setIsLoggedIn(!!phiraToken);
   }, []);
+
+  useEffect(() => {
+    if (hasUrlConfig) {
+      applyConfig().then(success => {
+        if (success) {
+          setIsConfigured(true);
+          setConfigKey(prev => prev + 1);
+        }
+      });
+    }
+  }, [hasUrlConfig]);
 
   const handleConfigChange = () => {
     const savedUrl = localStorage.getItem('api_base_url') || '';
@@ -115,6 +129,12 @@ function MainLayout() {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
+              {isValidating && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  正在验证配置...
+                </div>
+              )}
               <ConfigDialog onConfigChange={handleConfigChange}>
                 <Button variant="outline" size="sm" className="relative">
                   <Settings className="h-4 w-4 mr-2" />
@@ -141,6 +161,12 @@ function MainLayout() {
           {/* Mobile Menu */}
           {isMobileMenuOpen && (
             <div className="md:hidden mt-4 pt-4 border-t space-y-3 animate-slide-in">
+              {isValidating && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  正在验证配置...
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <ConfigDialog onConfigChange={handleConfigChange}>
                   <Button variant="outline" size="sm" className="flex-1 relative">
