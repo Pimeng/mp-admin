@@ -16,50 +16,11 @@ export default defineConfig({
     // 启用代码分割
     rollupOptions: {
       output: {
-        // 手动分包策略 - 使用函数形式更智能地分割
+        // 手动分包策略 - 简单策略：只分割项目代码，第三方依赖打包在一起
         manualChunks(id: string) {
-          // React 核心库
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-            return 'vendor-react';
-          }
-          // React Router
-          if (id.includes('node_modules/react-router') || id.includes('node_modules/@remix-run')) {
-            return 'vendor-router';
-          }
-          // Radix UI 组件库
-          if (id.includes('node_modules/@radix-ui')) {
-            return 'vendor-ui';
-          }
-          // 图表库
-          if (id.includes('node_modules/recharts')) {
-            return 'vendor-charts';
-          }
-          // 表单相关
-          if (id.includes('node_modules/react-hook-form') ||
-              id.includes('node_modules/@hookform') ||
-              id.includes('node_modules/zod')) {
-            return 'vendor-forms';
-          }
-          // 工具库
-          if (id.includes('node_modules/date-fns') ||
-              id.includes('node_modules/clsx') ||
-              id.includes('node_modules/tailwind-merge') ||
-              id.includes('node_modules/class-variance-authority')) {
-            return 'vendor-utils';
-          }
-          // 其他 node_modules 按包名分组
-          if (id.includes('node_modules')) {
-            // 提取包名
-            const match = id.match(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/);
-            if (match) {
-              const packageName = match[1];
-              // 将大型依赖单独打包，其他按 vendor-其他 分组
-              const largePackages = ['lucide-react', 'cmdk', 'vaul', 'embla-carousel-react', 'react-day-picker'];
-              if (largePackages.some(pkg => packageName?.includes(pkg))) {
-                return `vendor-${packageName?.replace('@', '').replace('/', '-')}`;
-              }
-              return 'vendor-others';
-            }
+          // 所有 node_modules 打包到一个 vendor chunk
+          if (id.includes('node_modules') || id.includes('.pnpm')) {
+            return 'vendor';
           }
           // 项目代码按功能模块分割
           if (id.includes('/src/pages/')) {
@@ -94,7 +55,7 @@ export default defineConfig({
       },
     },
     // 控制 chunk 大小警告阈值 (单位: KB)
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 1000,
     // 启用压缩（使用 esbuild，Vite 默认）
     minify: 'esbuild',
     // 启用 CSS 代码分割
