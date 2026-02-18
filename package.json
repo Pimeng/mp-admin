@@ -1,7 +1,7 @@
 {
   "name": "mp-admin",
   "private": true,
-  "version": "1.3.3-fix",
+  "version": "1.3.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
