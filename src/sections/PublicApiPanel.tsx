@@ -156,7 +156,8 @@ export function PublicApiPanel() {
         }
       });
       
-      toast.success(`获取到 ${data.total} 个房间`);
+      const playerCount = roomsData.reduce((sum, room) => sum + (room.players?.length || 0), 0);
+      toast.success(`获取到 ${roomsData.length} 个房间，共 ${playerCount} 名玩家`);
     } catch {
       toast.error('获取房间列表失败');
     } finally {
