@@ -2,11 +2,24 @@ import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
+import { execSync } from 'child_process'
+
+// 获取 git commit hash
+function getGitCommitHash() {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim()
+  } catch {
+    return 'unknown'
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
   plugins: [inspectAttr(), react()],
+  define: {
+    __GIT_COMMIT_HASH__: JSON.stringify(getGitCommitHash()),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
