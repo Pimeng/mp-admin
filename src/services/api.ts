@@ -47,20 +47,20 @@ class ApiService {
     return headers;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, skipAuth: boolean = false): Promise<T> {
     if (!this.config.baseUrl) {
       throw new Error('API 地址未配置');
     }
-    
+
     const url = `${this.config.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       ...options,
       headers: {
-        ...this.getHeaders(),
+        ...(skipAuth ? { 'Content-Type': 'application/json' } : this.getHeaders()),
         ...options.headers,
       },
     });
-    
+
     const data = await response.json();
     return data;
   }
@@ -95,19 +95,19 @@ class ApiService {
 
   // ========== OTP 认证 ==========
 
-  // 请求OTP
+  // 请求OTP (不需要鉴权，当未配置永久TOKEN时使用)
   async requestOtp(): Promise<OtpRequestResponse> {
     return this.request('/admin/otp/request', {
       method: 'POST',
-    });
+    }, true);
   }
 
-  // 验证OTP
+  // 验证OTP (不需要鉴权)
   async verifyOtp(ssid: string, otp: string): Promise<OtpVerifyResponse> {
     return this.request('/admin/otp/verify', {
       method: 'POST',
       body: JSON.stringify({ ssid, otp }),
-    });
+    }, true);
   }
 
   // ========== 管理员接口 ==========

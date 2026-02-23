@@ -20,8 +20,19 @@ export function ConfigPanel({ onConfigChange }: ConfigPanelProps) {
 
   useEffect(() => {
     const savedUrl = localStorage.getItem('api_base_url') || '';
-    const savedToken = localStorage.getItem('api_admin_token') || '';
+    const savedTokenType = localStorage.getItem('api_token_type') || 'permanent';
     const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
+    
+    // 根据类型获取对应的token
+    let savedToken = '';
+    if (savedUseToken) {
+      if (savedTokenType === 'temp') {
+        savedToken = localStorage.getItem('api_temp_token') || '';
+      } else {
+        savedToken = localStorage.getItem('api_admin_token') || '';
+      }
+    }
+    
     setBaseUrl(savedUrl);
     setAdminToken(savedToken);
     setUseToken(savedUseToken);
@@ -51,15 +62,15 @@ export function ConfigPanel({ onConfigChange }: ConfigPanelProps) {
       toast.error('请先输入API地址');
       return;
     }
-    
+
     setIsTesting(true);
     try {
       apiService.setConfig({
         baseUrl,
         adminToken: useToken ? adminToken : '',
       });
-      
-      // 尝试获取房间列表来测试连接
+
+      // 使用 /room 接口校验 API 是否有效
       await apiService.getRooms();
       toast.success('连接测试成功！');
     } catch (error) {

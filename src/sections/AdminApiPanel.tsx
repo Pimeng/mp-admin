@@ -8,19 +8,24 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, 
-  Users, 
-  Ban, 
-  MessageSquare, 
+import {
+  Shield,
+  Users,
+  Ban,
+  MessageSquare,
   RefreshCw,
   Search,
   Send,
-  Trash2,
   Settings,
   Volume2,
   UserX,
-  Eye
+  Eye,
+  Trophy,
+  Play,
+  CheckCircle,
+  AlertCircle,
+  List,
+  Trash2
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
@@ -33,11 +38,15 @@ export function AdminApiPanel() {
   const [userId, setUserId] = useState('');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [roomId, setRoomId] = useState('');
-  const [maxUsers, setMaxUsers] = useState(8);
   const [message, setMessage] = useState('');
   const [replayEnabled, setReplayEnabled] = useState(false);
   const [roomCreationEnabled, setRoomCreationEnabled] = useState(true);
   const [activeTab, setActiveTab] = useState('rooms');
+
+  // 比赛相关状态
+  const [contestEnabled, setContestEnabled] = useState(false);
+  const [whitelist, setWhitelist] = useState('');
+  const [force, setForce] = useState(false);
 
   const fetchAdminRooms = async () => {
     setLoading(true);
@@ -47,10 +56,17 @@ export function AdminApiPanel() {
         setRooms(data.rooms || []);
         toast.success(`获取到 ${data.rooms.length} 个房间`);
       } else {
-        toast.error('获取房间列表失败');
+        const errorMsg = (data as any).error || '未知错误';
+        if (errorMsg === 'unauthorized') {
+          toast.error('管理员 TOKEN 无效或已过期，请重新配置');
+        } else if (errorMsg === 'admin-disabled') {
+          toast.error('服务器未配置管理员 TOKEN，无法使用管理功能');
+        } else {
+          toast.error('获取房间列表失败: ' + errorMsg);
+        }
       }
     } catch (error) {
-      toast.error('请求失败，请检查 TOKEN 是否有效');
+      toast.error('请求失败，请检查 API 地址和 TOKEN 是否有效');
     } finally {
       setLoading(false);
     }
@@ -108,34 +124,17 @@ export function AdminApiPanel() {
     }
   };
 
-  const handleSetMaxUsers = async () => {
-    if (!roomId) {
-      toast.error('请输入房间 ID');
-      return;
-    }
+  // 解散指定房间
+  const handleDisbandRoomById = async (targetRoomId: string) => {
     try {
-      const result = await apiService.setRoomMaxUsers(roomId, maxUsers);
+      const result = await apiService.disbandRoom(targetRoomId);
       if (result.ok) {
-        toast.success(`房间 ${roomId} 最大人数已设置为 ${maxUsers}`);
+        toast.success(`房间 ${targetRoomId} 已解散`);
+        // 刷新房间列表
+        fetchAdminRooms();
       } else {
-        toast.error('设置失败');
-      }
-    } catch (error) {
-      toast.error('请求失败');
-    }
-  };
-
-  const handleDisbandRoom = async () => {
-    if (!roomId) {
-      toast.error('请输入房间 ID');
-      return;
-    }
-    try {
-      const result = await apiService.disbandRoom(roomId);
-      if (result.ok) {
-        toast.success(`房间 ${roomId} 已解散`);
-      } else {
-        toast.error('解散失败');
+        const errorMsg = (result as any).error || '未知错误';
+        toast.error('解散失败: ' + errorMsg);
       }
     } catch (error) {
       toast.error('请求失败');
@@ -202,6 +201,78 @@ export function AdminApiPanel() {
     }
   };
 
+  // 比赛相关方法
+  const parseWhitelist = (): number[] => {
+    return whitelist
+      .split(',')
+      .map(id => id.trim())
+      .filter(id => id !== '')
+      .map(id => Number(id))
+      .filter(id => !isNaN(id));
+  };
+
+  const handleConfigContest = async () => {
+    if (!roomId) {
+      toast.error('请输入房间 ID');
+      return;
+    }
+    setLoading(true);
+    try {
+      const userIds = parseWhitelist();
+      const result = await apiService.configContestRoom(roomId, contestEnabled, userIds);
+      if (result.ok) {
+        toast.success(`比赛模式已${contestEnabled ? '启用' : '关闭'}`);
+      } else {
+        toast.error('配置失败');
+      }
+    } catch (error) {
+      toast.error('请求失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateWhitelist = async () => {
+    if (!roomId) {
+      toast.error('请输入房间 ID');
+      return;
+    }
+    setLoading(true);
+    try {
+      const userIds = parseWhitelist();
+      const result = await apiService.updateWhitelist(roomId, userIds);
+      if (result.ok) {
+        toast.success('白名单已更新');
+      } else {
+        toast.error('更新失败');
+      }
+    } catch (error) {
+      toast.error('请求失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartContest = async () => {
+    if (!roomId) {
+      toast.error('请输入房间 ID');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await apiService.startContest(roomId, force);
+      if (result.ok) {
+        toast.success('比赛已开始');
+      } else {
+        toast.error('开始失败');
+      }
+    } catch (error) {
+      toast.error('请求失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStateBadge = (type: string) => {
     const stateMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       'select_chart': { label: '选谱', variant: 'secondary' },
@@ -215,11 +286,12 @@ export function AdminApiPanel() {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full animate-fade-in">
-      <TabsList className="grid grid-cols-4 mb-4">
+      <TabsList className="grid grid-cols-5 mb-4">
         <TabsTrigger value="rooms">房间管理</TabsTrigger>
         <TabsTrigger value="users">用户管理</TabsTrigger>
         <TabsTrigger value="messages">消息广播</TabsTrigger>
         <TabsTrigger value="settings">功能开关</TabsTrigger>
+        <TabsTrigger value="contest">比赛</TabsTrigger>
       </TabsList>
 
       <div className="animate-slide-in">
@@ -275,6 +347,15 @@ export function AdminApiPanel() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                                onClick={() => handleDisbandRoomById(room.roomid)}
+                                title="解散房间"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={() => navigate(`/room/${room.roomid}`)}
                                 title="查看详情"
@@ -299,44 +380,6 @@ export function AdminApiPanel() {
                     </div>
                   </ScrollArea>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  房间操作
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>房间 ID</Label>
-                  <Input
-                    placeholder="输入房间 ID"
-                    value={roomId}
-                    onChange={(e) => setRoomId(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>最大人数 (1-64)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={64}
-                      value={maxUsers}
-                      onChange={(e) => setMaxUsers(Number(e.target.value))}
-                    />
-                    <Button onClick={handleSetMaxUsers}>
-                      设置
-                    </Button>
-                  </div>
-                </div>
-                <Button variant="destructive" onClick={handleDisbandRoom} className="w-full">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  解散房间
-                </Button>
               </CardContent>
             </Card>
           </div>
@@ -513,6 +556,159 @@ export function AdminApiPanel() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {activeTab === 'contest' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5" />
+                  比赛房间管理
+                </CardTitle>
+                <CardDescription>
+                  配置比赛模式：白名单限制 + 手动开始 + 结算后自动解散
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p>比赛房间特性：</p>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>仅白名单内用户可进入房间</li>
+                        <li>房主发起开始后需管理员手动确认</li>
+                        <li>对局结束后自动解散房间</li>
+                        <li>结算结果会输出到服务器日志</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  房间配置
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contestRoomId">房间 ID</Label>
+                  <Input
+                    id="contestRoomId"
+                    placeholder="输入房间 ID"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">比赛模式</div>
+                    <div className="text-sm text-muted-foreground">
+                      启用后房间变为比赛模式
+                    </div>
+                  </div>
+                  <Switch
+                    checked={contestEnabled}
+                    onCheckedChange={setContestEnabled}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="whitelist" className="flex items-center gap-2">
+                    <List className="h-4 w-4" />
+                    白名单用户 ID
+                  </Label>
+                  <textarea
+                    id="whitelist"
+                    className="w-full min-h-[80px] p-3 border rounded-md text-sm"
+                    placeholder="输入用户 ID，用逗号分隔，例如: 100, 200, 300"
+                    value={whitelist}
+                    onChange={(e) => setWhitelist(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    留空则默认取当前房间内所有用户为白名单
+                  </p>
+                </div>
+
+                <Button 
+                  onClick={handleConfigContest} 
+                  disabled={loading}
+                  className="w-full"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {loading ? '配置中...' : '应用配置'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  白名单管理
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>更新白名单</Label>
+                  <textarea
+                    className="w-full min-h-[80px] p-3 border rounded-md text-sm"
+                    placeholder="输入新的用户 ID 列表，用逗号分隔"
+                    value={whitelist}
+                    onChange={(e) => setWhitelist(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    会自动将当前房间内用户补进白名单
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleUpdateWhitelist} 
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  更新白名单
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Play className="h-5 w-5" />
+                  开始比赛
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">强制开始</div>
+                    <div className="text-sm text-muted-foreground">
+                      忽略未 ready 的玩家直接开始
+                    </div>
+                  </div>
+                  <Switch
+                    checked={force}
+                    onCheckedChange={setForce}
+                  />
+                </div>
+                <Button 
+                  onClick={handleStartContest} 
+                  disabled={loading}
+                  className="w-full"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  {loading ? '处理中...' : '开始比赛'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </Tabs>

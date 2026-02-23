@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button';
 import { ConfigDialog } from '@/components/ConfigDialog';
 import { UserMenu } from '@/components/UserMenu';
 import { ProtectedPanel } from '@/components/ProtectedPanel';
-import { PublicApiPanel } from '@/sections/PublicApiPanel';
+import { RoomQueryPanel } from '@/sections/RoomQueryPanel';
+import { ReplayPanel } from '@/sections/ReplayPanel';
 import { AdminApiPanel } from '@/sections/AdminApiPanel';
-import { OtpPanel } from '@/sections/OtpPanel';
-import { ContestPanel } from '@/sections/ContestPanel';
 import { RoomDetailPage } from '@/pages/RoomDetailPage';
 import { PublicRoomDetailPage } from '@/pages/PublicRoomDetailPage';
 import { apiService } from '@/services/api';
@@ -18,10 +17,9 @@ import { useUrlConfig } from '@/hooks/useUrlConfig';
 import { version } from '../package.json';
 import {
   Server,
-  Globe,
+  Users,
+  Film,
   Shield,
-  Key,
-  Trophy,
   Settings,
   Code2,
   Menu,
@@ -30,10 +28,10 @@ import {
   Loader2
 } from 'lucide-react';
 
-type TabType = 'public' | 'admin' | 'contest' | 'otp';
+type TabType = 'rooms' | 'replay' | 'admin';
 
 function MainLayout() {
-  const [activeTab, setActiveTab] = useState<TabType>('public');
+  const [activeTab, setActiveTab] = useState<TabType>('rooms');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -43,8 +41,18 @@ function MainLayout() {
   useEffect(() => {
     // 加载配置
     const savedUrl = localStorage.getItem('api_base_url') || '';
-    const savedToken = localStorage.getItem('api_admin_token') || '';
+    const savedTokenType = localStorage.getItem('api_token_type') || 'permanent';
     const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
+    
+    // 根据类型获取对应的token
+    let savedToken = '';
+    if (savedUseToken) {
+      if (savedTokenType === 'temp') {
+        savedToken = localStorage.getItem('api_temp_token') || '';
+      } else {
+        savedToken = localStorage.getItem('api_admin_token') || '';
+      }
+    }
     
     apiService.setConfig({
       baseUrl: savedUrl,
@@ -80,32 +88,25 @@ function MainLayout() {
   };
 
   const tabs = [
-    { id: 'public' as TabType, label: '公共接口', icon: Globe },
+    { id: 'rooms' as TabType, label: '房间查询', icon: Users },
+    { id: 'replay' as TabType, label: '录制回放', icon: Film },
     { id: 'admin' as TabType, label: '管理员', icon: Shield },
-    { id: 'contest' as TabType, label: '比赛', icon: Trophy },
-    { id: 'otp' as TabType, label: '验证码', icon: Key },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'public':
-        return <PublicApiPanel />;
+      case 'rooms':
+        return <RoomQueryPanel />;
+      case 'replay':
+        return <ReplayPanel />;
       case 'admin':
         return (
           <ProtectedPanel>
             <AdminApiPanel />
           </ProtectedPanel>
         );
-      case 'contest':
-        return (
-          <ProtectedPanel>
-            <ContestPanel />
-          </ProtectedPanel>
-        );
-      case 'otp':
-        return <OtpPanel onSuccess={handleConfigChange} />;
       default:
-        return <PublicApiPanel />;
+        return <RoomQueryPanel />;
     }
   };
 
