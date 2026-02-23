@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ export function PublicApiPanel() {
   const [userId, setUserId] = useState<number>(0);
   const [userName, setUserName] = useState<string>('');
   const [autoLoading, setAutoLoading] = useState(false);
+  const hasAutoFetched = useRef(false);
   
   // 谱面详情弹窗状态
   const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
@@ -75,8 +76,9 @@ export function PublicApiPanel() {
       adminToken: savedUseToken ? savedToken : '',
     });
 
-    // 自动加载房间列表
-    if (savedUrl) {
+    // 自动加载房间列表（只执行一次）
+    if (savedUrl && !hasAutoFetched.current) {
+      hasAutoFetched.current = true;
       fetchRooms();
     }
 
