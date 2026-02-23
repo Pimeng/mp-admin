@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { 
   Users, 
   RefreshCw,
@@ -144,9 +144,8 @@ export function RoomQueryPanel() {
               暂无房间数据，点击刷新获取
             </div>
           ) : (
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-3">
-                {rooms.map((room, index) => {
+            <div className="space-y-3">
+              {rooms.map((room, index) => {
                   const chartId = Number(room.chart?.id);
                   const chartInfo = chartInfos.get(chartId);
                   
@@ -200,10 +199,9 @@ export function RoomQueryPanel() {
                   );
                 })}
               </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }

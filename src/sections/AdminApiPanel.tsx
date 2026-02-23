@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Shield,
@@ -329,9 +329,8 @@ export function AdminApiPanel() {
                     暂无房间数据，点击刷新获取
                   </div>
                 ) : (
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-3">
-                      {rooms.map((room, index) => (
+                  <div className="space-y-3">
+                    {rooms.map((room, index) => (
                         <div
                           key={room.roomid}
                           className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm group"
@@ -378,14 +377,13 @@ export function AdminApiPanel() {
                         </div>
                       ))}
                     </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-        {activeTab === 'users' && (
+          {activeTab === 'users' && (
           <div className="space-y-4">
             <Card>
               <CardHeader>
