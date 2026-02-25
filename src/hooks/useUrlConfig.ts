@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
+import type { PublicRoom } from '@/types/api';
 
 export interface UrlConfig {
   apiUrl: string | null;
@@ -11,6 +12,7 @@ export interface UrlConfig {
 export interface ConfigValidationResult {
   success: boolean;
   message: string;
+  rooms?: PublicRoom[];
 }
 
 export function useUrlConfig() {
@@ -33,11 +35,11 @@ export function useUrlConfig() {
   const validateApiConfig = async (apiUrl: string, adminToken: string | null): Promise<ConfigValidationResult> => {
     try {
       const testUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-      
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
-      
+
       if (adminToken) {
         headers['X-Admin-Token'] = adminToken;
       }
@@ -50,9 +52,11 @@ export function useUrlConfig() {
       if (response.ok) {
         const data = await response.json();
         if (data && Array.isArray(data.rooms)) {
+          const playerCount = data.rooms.reduce((sum: number, room: PublicRoom) => sum + (room.players?.length || 0), 0);
           return {
             success: true,
-            message: `API 连接成功！发现 ${data.rooms.length} 个房间`
+            message: `获取到 ${data.rooms.length} 个房间，共 ${playerCount} 名玩家`,
+            rooms: data.rooms
           };
         }
         return {
@@ -87,7 +91,7 @@ export function useUrlConfig() {
 
     try {
       const apiUrl = config.apiUrl || localStorage.getItem('api_base_url') || '';
-      
+
       if (!apiUrl) {
         toast.error('无法应用配置：缺少 API 地址');
         return false;
@@ -97,7 +101,7 @@ export function useUrlConfig() {
 
       if (validation.success) {
         localStorage.setItem('api_base_url', apiUrl);
-        
+
         if (config.adminToken) {
           localStorage.setItem('api_admin_token', config.adminToken);
           localStorage.setItem('api_use_token', 'true');
@@ -107,6 +111,11 @@ export function useUrlConfig() {
           baseUrl: apiUrl,
           adminToken: config.adminToken || '',
         });
+
+        // 触发全局事件，通知 RoomQueryPanel 更新房间数据
+        if (validation.rooms) {
+          window.dispatchEvent(new CustomEvent('urlConfigRoomsLoaded', { detail: validation.rooms }));
+        }
 
         toast.success(validation.message);
         return true;

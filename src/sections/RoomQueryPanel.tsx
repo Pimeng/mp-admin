@@ -9,7 +9,7 @@ import {
   Globe,
   Music
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ import type { ChartInfo } from '@/services/phiraApi';
 
 export function RoomQueryPanel() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(new Map());
@@ -39,13 +40,37 @@ export function RoomQueryPanel() {
   useEffect(() => {
     applyApiConfig();
 
-    // 自动加载房间列表（只执行一次）
+    // 检查是否有 URL 参数传入的配置
+    const hasUrlConfig = searchParams.has('api_url') || searchParams.has('admin_token');
+
+    // 自动加载房间列表（只执行一次，且当没有 URL 配置时才自动获取）
     const savedUrl = localStorage.getItem('api_base_url') || '';
-    if (savedUrl && !hasAutoFetched.current) {
+    if (savedUrl && !hasAutoFetched.current && !hasUrlConfig) {
       hasAutoFetched.current = true;
       fetchRooms();
     }
   }, []);
+
+  // 监听 URL 配置加载的房间数据
+  useEffect(() => {
+    const handleUrlConfigRoomsLoaded = (event: CustomEvent<PublicRoom[]>) => {
+      const roomsData = event.detail;
+      setRooms(roomsData);
+      hasAutoFetched.current = true;
+
+      // 预加载谱面信息
+      roomsData.forEach(room => {
+        if (room.chart?.id) {
+          loadChartInfo(Number(room.chart.id));
+        }
+      });
+    };
+
+    window.addEventListener('urlConfigRoomsLoaded', handleUrlConfigRoomsLoaded as EventListener);
+    return () => {
+      window.removeEventListener('urlConfigRoomsLoaded', handleUrlConfigRoomsLoaded as EventListener);
+    };
+  }, [loadChartInfo]);
 
   const fetchRooms = async () => {
     const config = apiService.getConfig();
