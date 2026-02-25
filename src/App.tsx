@@ -14,6 +14,7 @@ import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { useRouteRestore } from '@/hooks/useRouteRestore';
 import { useUrlConfig } from '@/hooks/useUrlConfig';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { version } from '../package.json';
 import {
   Server,
@@ -136,6 +137,7 @@ function MainLayout() {
                   正在验证配置...
                 </div>
               )}
+              <ThemeToggle />
               <ConfigDialog onConfigChange={handleConfigChange}>
                 <Button variant="outline" size="sm" className="relative">
                   <Settings className="h-4 w-4 mr-2" />
@@ -169,6 +171,7 @@ function MainLayout() {
                 </div>
               )}
               <div className="flex items-center gap-3">
+                <ThemeToggle />
                 <ConfigDialog onConfigChange={handleConfigChange}>
                   <Button variant="outline" size="sm" className="flex-1 relative">
                     <Settings className="h-4 w-4 mr-2" />
