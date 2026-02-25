@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-import { 
-  Users, 
+import {
+  Users,
   RefreshCw,
   Globe,
   Music
@@ -13,57 +13,34 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
+import { getStateBadgeConfig } from '@/lib/utils';
+import { applyApiConfig } from '@/hooks/useApiConfig';
 
 import type { PublicRoom } from '@/types/api';
 import type { ChartInfo } from '@/services/phiraApi';
-
-// 谱面信息缓存
-const chartCache = new Map<number, ChartInfo>();
 
 export function RoomQueryPanel() {
   const navigate = useNavigate();
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [loading, setLoading] = useState(false);
-  const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(chartCache);
+  const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(new Map());
   const hasAutoFetched = useRef(false);
 
   // 加载谱面信息
   const loadChartInfo = useCallback(async (chartId: number) => {
-    if (chartCache.has(chartId)) {
-      return chartCache.get(chartId)!;
+    const info = await phiraApiService.getChartInfoCached(chartId);
+    if (info) {
+      setChartInfos(prev => new Map(prev).set(chartId, info));
     }
-    try {
-      const info = await phiraApiService.getChartInfo(chartId);
-      chartCache.set(chartId, info);
-      setChartInfos(new Map(chartCache));
-      return info;
-    } catch {
-      return null;
-    }
+    return info;
   }, []);
 
   // 从本地存储加载配置
   useEffect(() => {
-    const savedUrl = localStorage.getItem('api_base_url') || '';
-    const savedTokenType = localStorage.getItem('api_token_type') || 'permanent';
-    const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
-    
-    // 根据类型获取对应的token
-    let savedToken = '';
-    if (savedUseToken) {
-      if (savedTokenType === 'temp') {
-        savedToken = localStorage.getItem('api_temp_token') || '';
-      } else {
-        savedToken = localStorage.getItem('api_admin_token') || '';
-      }
-    }
-    
-    apiService.setConfig({
-      baseUrl: savedUrl,
-      adminToken: savedUseToken ? savedToken : '',
-    });
+    applyApiConfig();
 
     // 自动加载房间列表（只执行一次）
+    const savedUrl = localStorage.getItem('api_base_url') || '';
     if (savedUrl && !hasAutoFetched.current) {
       hasAutoFetched.current = true;
       fetchRooms();
@@ -100,13 +77,7 @@ export function RoomQueryPanel() {
   };
 
   const getStateBadge = (state: string) => {
-    const stateMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      'select_chart': { label: '选谱', variant: 'secondary' },
-      'playing': { label: '游戏中', variant: 'default' },
-      'waiting': { label: '等待中', variant: 'outline' },
-      'waiting_for_ready': { label: '准备中', variant: 'secondary' },
-    };
-    const config = stateMap[state] || { label: state, variant: 'outline' };
+    const config = getStateBadgeConfig(state);
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 

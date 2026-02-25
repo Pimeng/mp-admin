@@ -22,77 +22,53 @@ import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import { LoginDialog } from '@/components/LoginDialog';
+import { applyApiConfig } from '@/hooks/useApiConfig';
 import type { ReplayAuthResponse, ReplayChart } from '@/types/api';
 import type { ChartInfo } from '@/services/phiraApi';
-
-// 谱面信息缓存
-const chartCache = new Map<number, ChartInfo>();
 
 export function ReplayPanel() {
   const [replayData, setReplayData] = useState<ReplayAuthResponse | null>(null);
   const [sessionToken, setSessionToken] = useState('');
   const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
-  const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(chartCache);
+  const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(new Map());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState<number>(0);
   const [userName, setUserName] = useState<string>('');
   const [autoLoading, setAutoLoading] = useState(false);
-  
+
   // 谱面详情弹窗状态
   const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
 
   // 加载谱面信息
   const loadChartInfo = useCallback(async (chartId: number) => {
-    if (chartCache.has(chartId)) {
-      return chartCache.get(chartId)!;
+    const info = await phiraApiService.getChartInfoCached(chartId);
+    if (info) {
+      setChartInfos(prev => new Map(prev).set(chartId, info));
     }
-    try {
-      const info = await phiraApiService.getChartInfo(chartId);
-      chartCache.set(chartId, info);
-      setChartInfos(new Map(chartCache));
-      return info;
-    } catch {
-      return null;
-    }
+    return info;
   }, []);
 
   // 从本地存储加载配置
   useEffect(() => {
-    const savedUrl = localStorage.getItem('api_base_url') || '';
-    const savedTokenType = localStorage.getItem('api_token_type') || 'permanent';
-    const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
-    
-    // 根据类型获取对应的token
-    let savedToken = '';
-    if (savedUseToken) {
-      if (savedTokenType === 'temp') {
-        savedToken = localStorage.getItem('api_temp_token') || '';
-      } else {
-        savedToken = localStorage.getItem('api_admin_token') || '';
-      }
-    }
-    
-    apiService.setConfig({
-      baseUrl: savedUrl,
-      adminToken: savedUseToken ? savedToken : '',
-    });
+    applyApiConfig();
 
     // 检查登录状态并自动获取回放
     const token = phiraApiService.getUserToken();
     const uid = phiraApiService.getUserId();
-    
+    const savedUrl = localStorage.getItem('api_base_url') || '';
+
     if (token && uid) {
       setIsLoggedIn(true);
       setUserId(uid);
-      
+
       // 获取用户信息
       apiService.getCurrentUser().then((userInfo) => {
         setUserName(userInfo.name);
       }).catch(() => {
         // 获取失败时不影响其他功能
       });
-      
+
       // 如果API已配置，自动获取回放
       if (savedUrl) {
         setAutoLoading(true);

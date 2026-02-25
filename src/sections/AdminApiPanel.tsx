@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
+import { getStateBadgeConfig } from '@/lib/utils';
 import type { Room, UserInfo } from '@/types/api';
 
 export function AdminApiPanel() {
@@ -274,13 +275,7 @@ export function AdminApiPanel() {
   };
 
   const getStateBadge = (type: string) => {
-    const stateMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      'select_chart': { label: '选谱', variant: 'secondary' },
-      'playing': { label: '游戏中', variant: 'default' },
-      'waiting': { label: '等待中', variant: 'outline' },
-      'waiting_for_ready': { label: '准备中', variant: 'secondary' },
-    };
-    const config = stateMap[type] || { label: type, variant: 'outline' };
+    const config = getStateBadgeConfig(type);
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 

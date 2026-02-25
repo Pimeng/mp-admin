@@ -247,6 +247,54 @@ class PhiraApiService {
     this.chartCache.clear();
     this.userCache.clear();
   }
+
+  // 获取缓存的谱面信息（同步）
+  getCachedChartInfo(chartId: number): ChartInfo | undefined {
+    return this.chartCache.get(chartId);
+  }
+
+  // 检查谱面是否已缓存
+  hasChartCached(chartId: number): boolean {
+    return this.chartCache.has(chartId);
+  }
+
+  // 加载多个谱面信息（带缓存优化）
+  async loadChartInfos(chartIds: number[]): Promise<Map<number, ChartInfo>> {
+    const result = new Map<number, ChartInfo>();
+    const uncachedIds: number[] = [];
+
+    // 先检查缓存
+    for (const id of chartIds) {
+      const cached = this.chartCache.get(id);
+      if (cached) {
+        result.set(id, cached);
+      } else {
+        uncachedIds.push(id);
+      }
+    }
+
+    // 并行加载未缓存的谱面
+    if (uncachedIds.length > 0) {
+      const promises = uncachedIds.map(async (id) => {
+        try {
+          const info = await this.getChartInfo(id);
+          this.chartCache.set(id, info);
+          return { id, info };
+        } catch {
+          return null;
+        }
+      });
+
+      const loaded = await Promise.all(promises);
+      for (const item of loaded) {
+        if (item) {
+          result.set(item.id, item.info);
+        }
+      }
+    }
+
+    return result;
+  }
 }
 
 export const phiraApiService = new PhiraApiService();

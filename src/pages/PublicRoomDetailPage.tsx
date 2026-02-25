@@ -23,6 +23,7 @@ import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { UserDetailDialog } from '@/components/UserDetailDialog';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
+import { getStateBadgeConfig } from '@/lib/utils';
 import type { PublicRoom } from '@/types/api';
 
 interface ExtendedPublicRoom extends PublicRoom {
@@ -207,13 +208,7 @@ export function PublicRoomDetailPage() {
   }, [fetchRoomDetail]);
 
   const getStateBadge = (state: string) => {
-    const stateMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      'select_chart': { label: '选谱中', variant: 'secondary' },
-      'playing': { label: '游戏中', variant: 'default' },
-      'waiting': { label: '等待中', variant: 'outline' },
-      'waiting_for_ready': { label: '准备中', variant: 'secondary' },
-    };
-    const config = stateMap[state] || { label: state, variant: 'outline' };
+    const config = getStateBadgeConfig(state);
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
