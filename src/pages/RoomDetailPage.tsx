@@ -24,7 +24,9 @@ import {
   User,
   Wifi,
   WifiOff,
-  Send
+  Send,
+  Check,
+  Hourglass
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { phiraApiService, type UserDetailInfo, type ChartInfo } from '@/services/phiraApi';
@@ -560,6 +562,25 @@ export function RoomDetailPage() {
                   </div>
                 </div>
 
+                {room.state?.type === 'waiting_for_ready' && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">准备状态</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                          <div className="text-sm text-green-600 dark:text-green-400">已准备</div>
+                          <div className="text-lg font-semibold">{room.state.ready_count || 0}</div>
+                        </div>
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                          <div className="text-sm text-yellow-600 dark:text-yellow-400">未准备</div>
+                          <div className="text-lg font-semibold">{(room.users?.length || 0) - (room.state.ready_count || 0)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {room.state?.type === 'playing' && (
                   <>
                     <Separator />
@@ -733,6 +754,11 @@ export function RoomDetailPage() {
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 玩家列表 ({room.users?.length || 0})
+                {room.state?.type === 'waiting_for_ready' && room.state?.ready_count !== undefined && (
+                  <Badge variant="secondary" className="ml-2">
+                    {room.state.ready_count}/{room.users?.length || 0} 已准备
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -743,35 +769,55 @@ export function RoomDetailPage() {
               ) : (
                 <ScrollArea className="h-[280px]">
                   <div className="space-y-2">
-                    {room.users?.map((user) => (
-                      <div
-                        key={user.id}
-                        className="p-2 border rounded-lg flex items-center justify-between hover:border-primary/50 transition-colors cursor-pointer group"
-                        onClick={() => handleOpenUserDetail(user.id)}
-                      >
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(user.connected)}
-                          <div>
-                            <div className="font-medium flex items-center gap-1">
-                              {user.name}
-                              {user.is_host && (
-                                <Crown className="h-3 w-3 text-yellow-500" />
-                              )}
+                    {room.users?.map((user) => {
+                      const isReady = room.state?.ready_users?.includes(user.id);
+                      return (
+                        <div
+                          key={user.id}
+                          className="p-2 border rounded-lg flex items-center justify-between hover:border-primary/50 transition-colors cursor-pointer group"
+                          onClick={() => handleOpenUserDetail(user.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(user.connected)}
+                            <div>
+                              <div className="font-medium flex items-center gap-1">
+                                {user.name}
+                                {user.is_host && (
+                                  <Crown className="h-3 w-3 text-yellow-500" />
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                ID: {user.id}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              ID: {user.id}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* 准备状态 */}
+                            {room.state?.type === 'waiting_for_ready' && (
+                              isReady ? (
+                                <Badge variant="default" className="bg-green-500 text-white">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  已准备
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  <Hourglass className="h-3 w-3 mr-1" />
+                                  未准备
+                                </Badge>
+                              )
+                            )}
+                            {/* 在线状态 */}
+                            <div className="text-right text-xs">
+                              {user.connected ? (
+                                <span className="text-green-600">在线</span>
+                              ) : (
+                                <span className="text-gray-400">离线</span>
+                              )}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right text-xs">
-                          {user.connected ? (
-                            <span className="text-green-600">在线</span>
-                          ) : (
-                            <span className="text-gray-400">离线</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               )}

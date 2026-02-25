@@ -17,7 +17,9 @@ import {
   Wifi,
   WifiOff,
   Globe,
-  Radio
+  Radio,
+  Check,
+  Hourglass
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
@@ -26,10 +28,18 @@ import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import { getStateBadgeConfig } from '@/lib/utils';
 import type { PublicRoom } from '@/types/api';
 
+interface Player {
+  id: number;
+  name: string;
+  is_ready?: boolean;
+}
+
 interface ExtendedPublicRoom extends PublicRoom {
   max_users?: number;
   current_users?: number;
   monitors?: number;
+  ready_count?: number;
+  players_with_ready?: Player[];
 }
 
 export function PublicRoomDetailPage() {
@@ -134,6 +144,13 @@ export function PublicRoomDetailPage() {
           case 'room_update':
             // 更新房间状态
             if (message.data) {
+              const playersWithReady: Player[] = message.data.users?.map((u: any) => ({
+                id: u.id,
+                name: u.name,
+                is_ready: u.is_ready
+              })) || [];
+              const readyCount = playersWithReady.filter((p: Player) => p.is_ready).length;
+
               const updatedRoom: ExtendedPublicRoom = {
                 roomid: message.data.roomid,
                 cycle: message.data.cycle,
@@ -141,10 +158,12 @@ export function PublicRoomDetailPage() {
                 host: message.data.host || { id: '0', name: '未知' },
                 state: message.data.state || 'waiting',
                 chart: message.data.chart || { id: '0', name: '未选择' },
-                players: message.data.users?.map((u: any) => ({ name: u.name, id: u.id })) || [],
+                players: playersWithReady.map((p: Player) => ({ name: p.name, id: p.id })),
                 max_users: 8,
                 current_users: message.data.users?.length || 0,
                 monitors: message.data.monitors?.length || 0,
+                ready_count: readyCount,
+                players_with_ready: playersWithReady,
               };
               setRoom(updatedRoom);
             }
@@ -395,6 +414,11 @@ export function PublicRoomDetailPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   玩家列表 ({room.players?.length || 0})
+                  {room.state === 'waiting_for_ready' && room.ready_count !== undefined && (
+                    <Badge variant="secondary" className="ml-2">
+                      {room.ready_count}/{room.players?.length || 0} 已准备
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -404,7 +428,7 @@ export function PublicRoomDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {room.players?.map((player) => (
+                    {room.players_with_ready?.map((player) => (
                       <div
                         key={player.id}
                         className="p-3 border rounded-lg flex items-center justify-between hover:border-primary/50 transition-colors cursor-pointer group"
@@ -427,10 +451,24 @@ export function PublicRoomDetailPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right text-sm">
-                          <span className="text-green-600">在线</span>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground mt-1">
-                            点击查看详情
+                        <div className="flex items-center gap-2">
+                          {/* 准备状态 */}
+                          {room.state === 'waiting_for_ready' && (
+                            player.is_ready ? (
+                              <Badge variant="default" className="bg-green-500 text-white">
+                                <Check className="h-3 w-3 mr-1" />
+                                已准备
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                <Hourglass className="h-3 w-3 mr-1" />
+                                未准备
+                              </Badge>
+                            )
+                          )}
+                          {/* 在线状态 */}
+                          <div className="text-right text-sm">
+                            <span className="text-green-600">在线</span>
                           </div>
                         </div>
                       </div>

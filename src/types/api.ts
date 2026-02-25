@@ -13,7 +13,9 @@ export interface Room {
   cycle: boolean;
   host: { id: number; name: string };
   state: {
-    type: 'select_chart' | 'playing' | 'waiting';
+    type: 'select_chart' | 'playing' | 'waiting' | 'waiting_for_ready';
+    ready_users?: number[];
+    ready_count?: number;
     results_count?: number;
     aborted_count?: number;
     finished_users?: number[];
