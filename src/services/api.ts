@@ -6,7 +6,10 @@ import type {
   ReplayAuthResponse, 
   OtpRequestResponse, 
   OtpVerifyResponse,
-  CurrentUserInfo
+  CurrentUserInfo,
+  ReplayUploadResponse,
+  AutoUploadConfigResponse,
+  AutoUploadConfigRequest
 } from '@/types/api';
 import { phiraApiService } from './phiraApi';
 
@@ -90,6 +93,27 @@ class ApiService {
     return this.request('/replay/delete', {
       method: 'POST',
       body: JSON.stringify({ sessionToken, chartId, timestamp }),
+    });
+  }
+
+  // 上传回放到分享站
+  async uploadReplay(token: string, chartId: number, timestamp: number): Promise<ReplayUploadResponse> {
+    return this.request('/replay/upload', {
+      method: 'POST',
+      body: JSON.stringify({ token, chartId, timestamp }),
+    });
+  }
+
+  // 获取自动上传配置
+  async getAutoUploadConfig(token: string): Promise<AutoUploadConfigResponse> {
+    return this.request(`/replay/auto-upload/config?token=${encodeURIComponent(token)}`);
+  }
+
+  // 修改自动上传配置
+  async setAutoUploadConfig(config: AutoUploadConfigRequest): Promise<AutoUploadConfigResponse> {
+    return this.request('/replay/auto-upload/config', {
+      method: 'POST',
+      body: JSON.stringify(config),
     });
   }
 

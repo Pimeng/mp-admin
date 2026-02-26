@@ -109,3 +109,29 @@ export interface CurrentUserInfo {
   following_count: number;
   email: string;
 }
+
+// 分享站相关类型
+export interface ReplayUploadResponse {
+  ok: boolean;
+  userId: number;
+  chartId: number;
+  recordId: number;
+  scoreId: number;
+  message: string;
+  error?: string;
+}
+
+export interface AutoUploadConfigResponse {
+  ok: boolean;
+  userId: number;
+  enabled: boolean;
+  show: boolean;
+  shareStationConfigured: boolean;
+  error?: string;
+}
+
+export interface AutoUploadConfigRequest {
+  token: string;
+  enabled?: boolean;
+  show?: boolean;
+}

@@ -1,9 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Play, 
   Download, 
@@ -15,7 +28,9 @@ import {
   ChevronUp,
   LogIn,
   LogOut,
-  User
+  User,
+  Upload,
+  Settings
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
@@ -23,7 +38,7 @@ import { toast } from 'sonner';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import { LoginDialog } from '@/components/LoginDialog';
 import { applyApiConfig } from '@/hooks/useApiConfig';
-import type { ReplayAuthResponse, ReplayChart } from '@/types/api';
+import type { ReplayAuthResponse, ReplayChart, AutoUploadConfigResponse } from '@/types/api';
 import type { ChartInfo } from '@/services/phiraApi';
 
 export function ReplayPanel() {
@@ -35,10 +50,20 @@ export function ReplayPanel() {
   const [userId, setUserId] = useState<number>(0);
   const [userName, setUserName] = useState<string>('');
   const [autoLoading, setAutoLoading] = useState(false);
+  const [uploadingReplays, setUploadingReplays] = useState<Set<string>>(new Set());
 
   // 谱面详情弹窗状态
   const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
+
+  // 自动上传配置状态
+  const [autoUploadConfig, setAutoUploadConfig] = useState<AutoUploadConfigResponse | null>(null);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [configLoading, setConfigLoading] = useState(false);
+
+  // 上传确认对话框状态
+  const [uploadConfirmOpen, setUploadConfirmOpen] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<{ chartId: number; timestamp: number } | null>(null);
 
   // 加载谱面信息
   const loadChartInfo = useCallback(async (chartId: number) => {
@@ -207,6 +232,107 @@ export function ReplayPanel() {
     setChartDialogOpen(true);
   };
 
+  // 打开上传确认对话框
+  const openUploadConfirm = (chartId: number, timestamp: number) => {
+    const token = phiraApiService.getUserToken();
+    if (!token) {
+      toast.error('请先登录 Phira 账号');
+      return;
+    }
+    setPendingUpload({ chartId, timestamp });
+    setUploadConfirmOpen(true);
+  };
+
+  // 确认上传回放到分享站
+  const confirmUploadReplay = async () => {
+    if (!pendingUpload) return;
+
+    const token = phiraApiService.getUserToken();
+    if (!token) {
+      toast.error('请先登录 Phira 账号');
+      return;
+    }
+
+    const { chartId, timestamp } = pendingUpload;
+    const uploadKey = `${chartId}-${timestamp}`;
+    setUploadingReplays(prev => new Set(prev).add(uploadKey));
+    setUploadConfirmOpen(false);
+
+    try {
+      const result = await apiService.uploadReplay(token, chartId, timestamp);
+      if (result.ok) {
+        toast.success('上传成功', {
+          description: `记录ID: ${result.recordId}, 成绩ID: ${result.scoreId}`,
+        });
+      } else {
+        toast.error('上传失败', {
+          description: result.error || '未知错误',
+        });
+      }
+    } catch (err) {
+      toast.error('上传请求失败');
+    } finally {
+      setUploadingReplays(prev => {
+        const next = new Set(prev);
+        next.delete(uploadKey);
+        return next;
+      });
+      setPendingUpload(null);
+    }
+  };
+
+  // 获取自动上传配置
+  const handleFetchAutoUploadConfig = async () => {
+    const token = phiraApiService.getUserToken();
+    if (!token) {
+      toast.error('请先登录 Phira 账号');
+      return;
+    }
+
+    setConfigLoading(true);
+    try {
+      const result = await apiService.getAutoUploadConfig(token);
+      if (result.ok) {
+        setAutoUploadConfig(result);
+        setConfigDialogOpen(true);
+      } else {
+        toast.error('获取配置失败', {
+          description: result.error || '未知错误',
+        });
+      }
+    } catch {
+      toast.error('获取配置请求失败');
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  // 修改自动上传配置
+  const handleUpdateAutoUploadConfig = async (enabled: boolean, show: boolean) => {
+    const token = phiraApiService.getUserToken();
+    if (!token) {
+      toast.error('请先登录 Phira 账号');
+      return;
+    }
+
+    setConfigLoading(true);
+    try {
+      const result = await apiService.setAutoUploadConfig({ token, enabled, show });
+      if (result.ok) {
+        setAutoUploadConfig(result);
+        toast.success('配置已更新');
+      } else {
+        toast.error('更新配置失败', {
+          description: result.error || '未知错误',
+        });
+      }
+    } catch {
+      toast.error('更新配置请求失败');
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       <Card>
@@ -239,6 +365,15 @@ export function ReplayPanel() {
                   >
                     <Play className={`h-4 w-4 mr-2 ${autoLoading ? 'animate-spin' : ''}`} />
                     {autoLoading ? '加载中...' : '获取回放'}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleFetchAutoUploadConfig}
+                    disabled={configLoading}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    自动上传
                   </Button>
                   <Button 
                     size="sm" 
@@ -345,6 +480,14 @@ export function ReplayPanel() {
                                   >
                                     <Download className="h-4 w-4" />
                                   </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openUploadConfirm(chart.chartId, replay.timestamp)}
+                                    disabled={uploadingReplays.has(`${chart.chartId}-${replay.timestamp}`)}
+                                  >
+                                    <Upload className={`h-4 w-4 ${uploadingReplays.has(`${chart.chartId}-${replay.timestamp}`) ? 'animate-spin' : ''}`} />
+                                  </Button>
                                   <Button 
                                     size="sm" 
                                     variant="ghost"
@@ -381,6 +524,83 @@ export function ReplayPanel() {
           onOpenChange={setChartDialogOpen}
         />
       )}
+
+      {/* 自动上传配置弹窗 */}
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              自动上传配置
+            </DialogTitle>
+            <DialogDescription>
+              配置游戏结束后是否自动将回放上传到分享站
+            </DialogDescription>
+          </DialogHeader>
+          {autoUploadConfig && (
+            <div className="space-y-6 py-4">
+              {!autoUploadConfig.shareStationConfigured && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                  服务器未配置分享站，自动上传功能不可用
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-upload">启用自动上传</Label>
+                  <p className="text-sm text-muted-foreground">
+                    游戏结束后自动上传回放到分享站
+                  </p>
+                </div>
+                <Switch
+                  id="auto-upload"
+                  checked={autoUploadConfig.enabled}
+                  onCheckedChange={(checked) =>
+                    handleUpdateAutoUploadConfig(checked, autoUploadConfig.show)
+                  }
+                  disabled={configLoading || !autoUploadConfig.shareStationConfigured}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="show-replay">上传后显示</Label>
+                  <p className="text-sm text-muted-foreground">
+                    自动上传的回放在分享站是否可见
+                  </p>
+                </div>
+                <Switch
+                  id="show-replay"
+                  checked={autoUploadConfig.show}
+                  onCheckedChange={(checked) =>
+                    handleUpdateAutoUploadConfig(autoUploadConfig.enabled, checked)
+                  }
+                  disabled={configLoading || !autoUploadConfig.shareStationConfigured}
+                />
+              </div>
+            </div>
+          )}
+          <CardFooter className="flex justify-end px-0">
+            <Button onClick={() => setConfigDialogOpen(false)}>
+              关闭
+            </Button>
+          </CardFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 上传确认对话框 */}
+      <AlertDialog open={uploadConfirmOpen} onOpenChange={setUploadConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认上传</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要将此回放上传到 Phira Replay 分享站吗？上传后该回放将对其他用户可见（根据您的显示设置）。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingUpload(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUploadReplay}>确认上传</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
