@@ -7,7 +7,7 @@
       "date": "2026-02-28 06:03:25 +0800",
       "message": "chore: 过滤自动生成的提交",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "过滤自动生成的提交",
       "author": "Pimeng"
     },
@@ -88,7 +88,7 @@
       "date": "2026-02-26 02:36:37 +0800",
       "message": "chore: 更新多人联机服务器监测地址",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "更新多人联机服务器监测地址",
       "author": "Pimeng"
     },
@@ -205,7 +205,7 @@
       "date": "2026-02-15 02:06:37 +0800",
       "message": "chore: 版本号",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "版本号",
       "author": "皮梦"
     },
@@ -232,7 +232,7 @@
       "date": "2026-02-14 23:20:32 +0800",
       "message": "chore: 前端显示版本号",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "前端显示版本号",
       "author": "皮梦"
     },
@@ -277,7 +277,7 @@
       "date": "2026-02-14 07:02:47 +0800",
       "message": "chore: 纠正Footer",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "纠正Footer",
       "author": "皮梦"
     },
@@ -376,7 +376,7 @@
       "date": "2026-02-14 04:46:30 +0800",
       "message": "chore: update pnpm lock file",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "update pnpm lock file",
       "author": "皮梦"
     },
@@ -385,7 +385,7 @@
       "date": "2026-02-14 04:31:48 +0800",
       "message": "chore: 使用swal2",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "使用swal2",
       "author": "皮梦"
     },
@@ -394,7 +394,7 @@
       "date": "2026-02-14 04:26:51 +0800",
       "message": "chore: 补足修改最大人数部分",
       "type": "chore",
-      "typeLabel": "构建/工具",
+      "typeLabel": "杂项",
       "content": "补足修改最大人数部分",
       "author": "皮梦"
     },

@@ -14,7 +14,7 @@ const typeMap: Record<string, string> = {
   refactor: '重构',
   perf: '性能优化',
   test: '测试',
-  chore: '构建/工具',
+  chore: '杂项',
   ci: 'CI/CD',
   build: '构建',
   revert: '回滚',
