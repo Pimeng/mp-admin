@@ -45,8 +45,13 @@ const typeColors: Record<string, string> = {
 export function ChangelogDialog({ children }: ChangelogDialogProps) {
   const commits: GitCommit[] = __GIT_COMMITS__
 
+  // 过滤掉自动生成的 changelog 提交
+  const filteredCommits = commits.filter(
+    (commit) => !commit.message.includes('[auto]')
+  )
+
   // 按日期分组提交
-  const groupedCommits = commits.reduce((groups, commit) => {
+  const groupedCommits = filteredCommits.reduce((groups, commit) => {
     const date = new Date(commit.date)
     const dateKey = format(date, 'yyyy-MM-dd')
     if (!groups[dateKey]) {
@@ -71,7 +76,7 @@ export function ChangelogDialog({ children }: ChangelogDialogProps) {
             更新日志
           </DialogTitle>
           <DialogDescription>
-            共 {commits.length} 次提交，按时间倒序排列
+            共 {filteredCommits.length} 次提交，按时间倒序排列
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
@@ -143,7 +148,7 @@ export function ChangelogDialog({ children }: ChangelogDialogProps) {
               )
             })}
 
-            {commits.length === 0 && (
+            {filteredCommits.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <GitCommit className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>暂无提交记录</p>
