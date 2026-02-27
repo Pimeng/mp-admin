@@ -63,6 +63,42 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
   const [tokenType, setTokenType] = useState<typeof TOKEN_TYPE_PERMANENT | typeof TOKEN_TYPE_TEMP>(TOKEN_TYPE_PERMANENT);
   const [currentStep, setCurrentStep] = useState<typeof STEP_URL | typeof STEP_TOKEN_NEED | typeof STEP_TOKEN_TYPE | typeof STEP_TOKEN_CONFIG>(STEP_URL);
 
+  // 检测当前页面协议
+  const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
+
+  // 检查URL是否符合安全策略
+  const checkUrlSecurity = (url: string): { valid: boolean; message?: string } => {
+    if (!url) return { valid: true };
+
+    try {
+      const urlObj = new URL(url);
+
+      // 如果是 https 页面，检查 http 限制
+      if (isHttpsPage && urlObj.protocol === 'http:') {
+        // 检查是否是本地地址
+        const hostname = urlObj.hostname;
+        const isLocalAddress =
+          hostname === '127.0.0.1' ||
+          hostname === 'localhost' ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('172.') ||
+          hostname === '[::1]';
+
+        if (!isLocalAddress) {
+          return {
+            valid: false,
+            message: '当前页面使用 HTTPS，只能访问 HTTPS 地址或本地地址（127.0.0.1、localhost、192.168.x.x、10.x.x.x）',
+          };
+        }
+      }
+
+      return { valid: true };
+    } catch {
+      return { valid: true };
+    }
+  };
+
   const otpAuth = useOtpAuth();
 
   useEffect(() => {
@@ -140,6 +176,14 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
       toast.error('请输入API地址');
       return;
     }
+
+    // 检查URL安全策略
+    const securityCheck = checkUrlSecurity(baseUrl);
+    if (!securityCheck.valid) {
+      toast.error(securityCheck.message || 'API地址不符合安全策略');
+      return;
+    }
+
     if (!isUrlValid) {
       toast.error('API地址无效，请检查');
       return;
@@ -213,6 +257,13 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
   const handleTestConnection = async () => {
     if (!baseUrl) {
       toast.error('请先输入API地址');
+      return;
+    }
+
+    // 检查URL安全策略
+    const securityCheck = checkUrlSecurity(baseUrl);
+    if (!securityCheck.valid) {
+      toast.error(securityCheck.message || 'API地址不符合安全策略');
       return;
     }
 
@@ -318,52 +369,69 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
   };
 
   // 渲染第一步：配置API地址
-  const renderUrlStep = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="baseUrl" className="flex items-center gap-2">
-          <Globe className="h-4 w-4" />
-          API 地址
-        </Label>
-        <div className="relative">
-          <Input
-            id="baseUrl"
-            placeholder="http://127.0.0.1:12347"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-          />
-          {isCheckingUrl ? (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-          ) : baseUrl && (
-            <div className={`absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${isUrlValid ? 'bg-green-500' : 'bg-red-500'}`} />
+  const renderUrlStep = () => {
+    const securityCheck = checkUrlSecurity(baseUrl);
+
+    return (
+      <div className="space-y-4">
+        {isHttpsPage && (
+          <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-xs text-amber-700 dark:text-amber-300">
+              当前页面使用 HTTPS，只能访问 HTTPS 地址或本地地址（127.0.0.1、localhost、192.168.x.x、10.x.x.x）
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="baseUrl" className="flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            API 地址
+          </Label>
+          <div className="relative">
+            <Input
+              id="baseUrl"
+              placeholder={isHttpsPage ? "https://example.com:12347 或 http://127.0.0.1:12347" : "http://127.0.0.1:12347"}
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+            />
+            {isCheckingUrl ? (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            ) : baseUrl && (
+              <div className={`absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${isUrlValid && securityCheck.valid ? 'bg-green-500' : 'bg-red-500'}`} />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {isHttpsPage ? '例如: https://api.example.com:12347 或 http://127.0.0.1:12347' : '例如: http://127.0.0.1:12347'}
+          </p>
+          {baseUrl && !isCheckingUrl && (
+            <p className={`text-xs ${isUrlValid && securityCheck.valid ? 'text-green-600' : 'text-red-600'}`}>
+              {!securityCheck.valid
+                ? securityCheck.message
+                : isUrlValid
+                  ? 'API 地址有效'
+                  : 'API 地址无效或无法连接'}
+            </p>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          例如: http://127.0.0.1:12347
-        </p>
-        {baseUrl && !isCheckingUrl && (
-          <p className={`text-xs ${isUrlValid ? 'text-green-600' : 'text-red-600'}`}>
-            {isUrlValid ? 'API 地址有效' : 'API 地址无效或无法连接'}
-          </p>
-        )}
-      </div>
 
-      <div className="flex gap-2 pt-2">
-        <Button onClick={handleSaveUrl} className="flex-1" disabled={!isUrlValid}>
-          <ArrowRight className="h-4 w-4 mr-2" />
-          下一步
-        </Button>
-        <Button variant="outline" onClick={handleTestConnection} disabled={isTesting || !baseUrl}>
-          {isTesting ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <TestTube className="h-4 w-4 mr-2" />
-          )}
-          测试
-        </Button>
+        <div className="flex gap-2 pt-2">
+          <Button onClick={handleSaveUrl} className="flex-1" disabled={!isUrlValid || !securityCheck.valid}>
+            <ArrowRight className="h-4 w-4 mr-2" />
+            下一步
+          </Button>
+          <Button variant="outline" onClick={handleTestConnection} disabled={isTesting || !baseUrl || !securityCheck.valid}>
+            {isTesting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <TestTube className="h-4 w-4 mr-2" />
+            )}
+            测试
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // 渲染第二步：选择是否配置TOKEN
   const renderTokenNeedStep = () => (
