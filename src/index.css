@@ -144,3 +144,23 @@ button, .btn {
 input, textarea {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
+
+/* Fix for browser autofill background color in dark mode */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px hsl(var(--input)) inset !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Ensure input background in dark mode */
+.dark input,
+.dark textarea {
+  background-color: hsl(var(--input) / 0.3);
+}

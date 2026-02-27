@@ -12,27 +12,38 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Settings,
   Globe,
-  Key,
   Save,
   TestTube,
   Loader2,
-  Lock,
-  Unlock,
-  Clock,
-  CheckCircle,
   AlertCircle,
-  Copy,
-  Shield,
   ArrowRight,
-  ArrowLeft,
-  User,
-  X
+  X,
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  XCircle,
+  History
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
-import { useOtpAuth } from '@/hooks/useOtpAuth';
+
+// API 配置项接口
+interface ApiConfigItem {
+  id: string;
+  name: string;
+  baseUrl: string;
+  createdAt: number;
+}
 
 interface ConfigDialogProps {
   onConfigChange?: () => void;
@@ -41,27 +52,20 @@ interface ConfigDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-// Token 类型
-const TOKEN_TYPE_PERMANENT = 'permanent';
-const TOKEN_TYPE_TEMP = 'temp';
-
-// 配置步骤
-const STEP_URL = 'url';
-const STEP_TOKEN_NEED = 'token_need';
-const STEP_TOKEN_TYPE = 'token_type';
-const STEP_TOKEN_CONFIG = 'token_config';
-
 export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChange }: ConfigDialogProps) {
   const [baseUrl, setBaseUrl] = useState('');
-  const [adminToken, setAdminToken] = useState('');
-  const [useToken, setUseToken] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
   const [open, setOpen] = useState(defaultOpen || false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [isUrlValid, setIsUrlValid] = useState(false);
   const [isCheckingUrl, setIsCheckingUrl] = useState(false);
-  const [tokenType, setTokenType] = useState<typeof TOKEN_TYPE_PERMANENT | typeof TOKEN_TYPE_TEMP>(TOKEN_TYPE_PERMANENT);
-  const [currentStep, setCurrentStep] = useState<typeof STEP_URL | typeof STEP_TOKEN_NEED | typeof STEP_TOKEN_TYPE | typeof STEP_TOKEN_CONFIG>(STEP_URL);
+
+  // 配置列表相关状态
+  const [savedConfigs, setSavedConfigs] = useState<ApiConfigItem[]>([]);
+  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [currentConfigName, setCurrentConfigName] = useState('');
 
   // 检测当前页面协议
   const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
@@ -99,37 +103,151 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
     }
   };
 
-  const otpAuth = useOtpAuth();
-
-  useEffect(() => {
-    const savedUrl = localStorage.getItem('api_base_url') || '';
-    const savedTokenType = localStorage.getItem('api_token_type') || TOKEN_TYPE_PERMANENT;
-    const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
-
-    // 根据类型获取对应的token
-    let savedToken = '';
-    if (savedUseToken) {
-      if (savedTokenType === TOKEN_TYPE_TEMP) {
-        savedToken = localStorage.getItem('api_temp_token') || '';
-      } else {
-        savedToken = localStorage.getItem('api_admin_token') || '';
+  // 从 localStorage 加载配置列表
+  const loadSavedConfigs = (): ApiConfigItem[] => {
+    try {
+      const configs = localStorage.getItem('api_saved_configs_v2');
+      if (configs) {
+        return JSON.parse(configs);
       }
+    } catch {
+      // 解析失败返回空数组
+    }
+    return [];
+  };
+
+  // 保存配置列表到 localStorage
+  const saveConfigsToStorage = (configs: ApiConfigItem[]) => {
+    localStorage.setItem('api_saved_configs_v2', JSON.stringify(configs));
+  };
+
+  // 加载指定配置
+  const loadConfig = (config: ApiConfigItem) => {
+    setBaseUrl(config.baseUrl);
+    setCurrentConfigName(config.name);
+    setSelectedConfigId(config.id);
+
+    // 保存到当前配置
+    localStorage.setItem('api_base_url', config.baseUrl);
+    localStorage.setItem('api_config_id', config.id);
+    // 清除旧的token相关配置，让ProtectedPanel来处理
+    localStorage.removeItem('api_use_token');
+    localStorage.removeItem('api_token_type');
+    localStorage.removeItem('api_admin_token');
+    localStorage.removeItem('api_temp_token');
+
+    apiService.setConfig({
+      baseUrl: config.baseUrl,
+      adminToken: '',
+    });
+
+    setIsConfigured(!!config.baseUrl);
+    if (config.baseUrl) {
+      checkUrlValidity(config.baseUrl);
+    }
+  };
+
+  // 保存当前配置到列表
+  const saveCurrentConfig = () => {
+    if (!baseUrl) {
+      toast.error('请先输入API地址');
+      return;
     }
 
+    const newConfig: ApiConfigItem = {
+      id: selectedConfigId || Date.now().toString(),
+      name: currentConfigName || baseUrl,
+      baseUrl,
+      createdAt: Date.now(),
+    };
+
+    const existingIndex = savedConfigs.findIndex(c => c.id === newConfig.id);
+    let updatedConfigs: ApiConfigItem[];
+
+    if (existingIndex >= 0) {
+      // 更新现有配置
+      updatedConfigs = [...savedConfigs];
+      updatedConfigs[existingIndex] = newConfig;
+    } else {
+      // 添加新配置
+      updatedConfigs = [...savedConfigs, newConfig];
+    }
+
+    setSavedConfigs(updatedConfigs);
+    saveConfigsToStorage(updatedConfigs);
+    setSelectedConfigId(newConfig.id);
+    toast.success('配置已保存到列表');
+  };
+
+  // 删除配置
+  const deleteConfig = (configId: string) => {
+    const updatedConfigs = savedConfigs.filter(c => c.id !== configId);
+    setSavedConfigs(updatedConfigs);
+    saveConfigsToStorage(updatedConfigs);
+
+    if (selectedConfigId === configId) {
+      setSelectedConfigId('');
+      setCurrentConfigName('');
+    }
+    toast.success('配置已删除');
+  };
+
+  // 更新配置名称
+  const updateConfigName = () => {
+    if (!editingName.trim()) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setCurrentConfigName(editingName.trim());
+
+    if (selectedConfigId) {
+      const updatedConfigs = savedConfigs.map(c =>
+        c.id === selectedConfigId ? { ...c, name: editingName.trim() } : c
+      );
+      setSavedConfigs(updatedConfigs);
+      saveConfigsToStorage(updatedConfigs);
+    }
+
+    setIsEditingName(false);
+  };
+
+  // 创建新配置
+  const createNewConfig = () => {
+    setBaseUrl('');
+    setCurrentConfigName('');
+    setSelectedConfigId('');
+    setIsUrlValid(false);
+  };
+
+  useEffect(() => {
+    // 加载保存的配置列表
+    const configs = loadSavedConfigs();
+    setSavedConfigs(configs);
+
+    // 加载当前使用的配置
+    const savedUrl = localStorage.getItem('api_base_url') || '';
+    const savedConfigId = localStorage.getItem('api_config_id') || '';
+
     setBaseUrl(savedUrl);
-    setAdminToken(savedToken);
-    setUseToken(savedUseToken);
-    setTokenType(savedTokenType as typeof TOKEN_TYPE_PERMANENT | typeof TOKEN_TYPE_TEMP);
     setIsConfigured(!!savedUrl);
 
-    // 检查URL有效性
+    // 查找当前配置是否在列表中
+    const currentConfig = configs.find(c => c.id === savedConfigId);
+    if (currentConfig) {
+      setSelectedConfigId(currentConfig.id);
+      setCurrentConfigName(currentConfig.name);
+    } else if (savedUrl) {
+      setCurrentConfigName(savedUrl);
+    }
+
     if (savedUrl) {
       checkUrlValidity(savedUrl);
     }
 
     apiService.setConfig({
       baseUrl: savedUrl,
-      adminToken: savedUseToken ? savedToken : '',
+      adminToken: '',
     });
   }, []);
 
@@ -197,61 +315,26 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
 
     setIsConfigured(true);
     onConfigChange?.();
-    toast.success('API地址已保存');
 
-    // 进入下一步：询问是否需要配置TOKEN
-    setCurrentStep(STEP_TOKEN_NEED);
-  };
-
-  const handleSkipToken = () => {
-    // 不配置TOKEN，直接关闭
-    localStorage.setItem('api_use_token', 'false');
-    setUseToken(false);
-    apiService.setConfig({
-      baseUrl,
-      adminToken: '',
-    });
-    setOpen(false);
-    setCurrentStep(STEP_URL);
-    onConfigChange?.();
-    toast.success('配置完成，已跳过管理员TOKEN配置');
-  };
-
-  const handleChooseTokenType = (type: typeof TOKEN_TYPE_PERMANENT | typeof TOKEN_TYPE_TEMP) => {
-    setTokenType(type);
-    setAdminToken('');
-    setUseToken(true);
-    setCurrentStep(STEP_TOKEN_CONFIG);
-  };
-
-  const handleSaveToken = () => {
-    if (useToken && !adminToken) {
-      toast.error('请输入管理员TOKEN');
-      return;
+    // 自动保存到配置列表（如果不存在）
+    if (!selectedConfigId) {
+      const newConfig: ApiConfigItem = {
+        id: Date.now().toString(),
+        name: currentConfigName || baseUrl,
+        baseUrl,
+        createdAt: Date.now(),
+      };
+      const updatedConfigs = [...savedConfigs, newConfig];
+      setSavedConfigs(updatedConfigs);
+      saveConfigsToStorage(updatedConfigs);
+      setSelectedConfigId(newConfig.id);
+      localStorage.setItem('api_config_id', newConfig.id);
+      toast.success('API地址已保存并添加到配置列表');
+    } else {
+      toast.success('API地址已保存');
     }
 
-    localStorage.setItem('api_use_token', useToken.toString());
-
-    if (useToken) {
-      // 根据当前选择的类型存储
-      if (tokenType === TOKEN_TYPE_TEMP) {
-        localStorage.setItem('api_temp_token', adminToken);
-        localStorage.setItem('api_token_type', TOKEN_TYPE_TEMP);
-      } else {
-        localStorage.setItem('api_admin_token', adminToken);
-        localStorage.setItem('api_token_type', TOKEN_TYPE_PERMANENT);
-      }
-    }
-
-    apiService.setConfig({
-      baseUrl,
-      adminToken: useToken ? adminToken : '',
-    });
-
-    onConfigChange?.();
-    toast.success('配置已保存');
     setOpen(false);
-    setCurrentStep(STEP_URL);
   };
 
   const handleTestConnection = async () => {
@@ -271,7 +354,7 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
     try {
       apiService.setConfig({
         baseUrl,
-        adminToken: useToken ? adminToken : '',
+        adminToken: '',
       });
 
       await apiService.getRooms();
@@ -285,423 +368,15 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
     }
   };
 
-  const handleOtpSuccess = (token: string) => {
-    setAdminToken(token);
-    setTokenType(TOKEN_TYPE_TEMP);
-    setUseToken(true);
-
-    localStorage.setItem('api_base_url', baseUrl);
-    localStorage.setItem('api_temp_token', token);
-    localStorage.setItem('api_use_token', 'true');
-    localStorage.setItem('api_token_type', TOKEN_TYPE_TEMP);
-
-    apiService.setConfig({
-      baseUrl,
-      adminToken: token,
-    });
-
-    setIsConfigured(true);
-    onConfigChange?.();
-    toast.success('验证成功，临时 TOKEN 已保存并生效');
-    setOpen(false);
-    setCurrentStep(STEP_URL);
-  };
-
   const handleClose = () => {
     setOpen(false);
     onOpenChange?.(false);
-    // 重置到第一步
-    setTimeout(() => setCurrentStep(STEP_URL), 300);
-  };
-
-  const handleBack = () => {
-    if (currentStep === STEP_TOKEN_CONFIG) {
-      setCurrentStep(STEP_TOKEN_TYPE);
-      setAdminToken('');
-      otpAuth.reset();
-    } else if (currentStep === STEP_TOKEN_TYPE) {
-      setCurrentStep(STEP_TOKEN_NEED);
-    } else if (currentStep === STEP_TOKEN_NEED) {
-      setCurrentStep(STEP_URL);
-    }
-  };
-
-  // 渲染步骤指示器
-  const renderStepIndicator = () => {
-    const steps = [
-      { id: STEP_URL, label: 'API地址' },
-      { id: STEP_TOKEN_NEED, label: 'TOKEN配置' },
-    ];
-
-    const currentIndex = steps.findIndex(s => s.id === currentStep);
-
-    return (
-      <div className="flex items-center justify-center gap-2 mb-6">
-        {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center gap-2">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                index <= currentIndex
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {index + 1}
-            </div>
-            <span
-              className={`text-xs ${
-                index <= currentIndex ? 'text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              {step.label}
-            </span>
-            {index < steps.length - 1 && (
-              <div
-                className={`w-8 h-0.5 mx-1 ${
-                  index < currentIndex ? 'bg-primary' : 'bg-muted'
-                }`}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // 渲染第一步：配置API地址
-  const renderUrlStep = () => {
-    const securityCheck = checkUrlSecurity(baseUrl);
-
-    return (
-      <div className="space-y-4">
-        {isHttpsPage && (
-          <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-xs text-amber-700 dark:text-amber-300">
-              当前页面使用 HTTPS，只能访问 HTTPS 地址或本地地址（127.0.0.1、localhost、192.168.x.x、10.x.x.x）
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="baseUrl" className="flex items-center gap-2">
-            <Globe className="h-4 w-4" />
-            API 地址
-          </Label>
-          <div className="relative">
-            <Input
-              id="baseUrl"
-              placeholder={isHttpsPage ? "https://example.com:12347 或 http://127.0.0.1:12347" : "http://127.0.0.1:12347"}
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-            />
-            {isCheckingUrl ? (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-            ) : baseUrl && (
-              <div className={`absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${isUrlValid && securityCheck.valid ? 'bg-green-500' : 'bg-red-500'}`} />
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {isHttpsPage ? '例如: https://api.example.com:12347 或 http://127.0.0.1:12347' : '例如: http://127.0.0.1:12347'}
-          </p>
-          {baseUrl && !isCheckingUrl && (
-            <p className={`text-xs ${isUrlValid && securityCheck.valid ? 'text-green-600' : 'text-red-600'}`}>
-              {!securityCheck.valid
-                ? securityCheck.message
-                : isUrlValid
-                  ? 'API 地址有效'
-                  : 'API 地址无效或无法连接'}
-            </p>
-          )}
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <Button onClick={handleSaveUrl} className="flex-1" disabled={!isUrlValid || !securityCheck.valid}>
-            <ArrowRight className="h-4 w-4 mr-2" />
-            下一步
-          </Button>
-          <Button variant="outline" onClick={handleTestConnection} disabled={isTesting || !baseUrl || !securityCheck.valid}>
-            {isTesting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <TestTube className="h-4 w-4 mr-2" />
-            )}
-            测试
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  // 渲染第二步：选择是否配置TOKEN
-  const renderTokenNeedStep = () => (
-    <div className="space-y-4">
-      <div className="text-center py-4">
-        <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-          <Key className="h-6 w-6 text-primary" />
-        </div>
-        <h3 className="text-lg font-medium mb-2">是否需要配置管理员 TOKEN？</h3>
-        <p className="text-sm text-muted-foreground">
-          管理员 TOKEN 用于访问管理功能，如房间管理、用户管理等
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          variant="outline"
-          className="flex flex-col items-center gap-2 h-auto py-4"
-          onClick={handleSkipToken}
-        >
-          <User className="h-6 w-6" />
-          <span className="text-sm">不需要</span>
-          <span className="text-xs text-muted-foreground">仅使用房间查询功能</span>
-        </Button>
-        <Button
-          className="flex flex-col items-center gap-2 h-auto py-4"
-          onClick={() => setCurrentStep(STEP_TOKEN_TYPE)}
-        >
-          <Shield className="h-6 w-6" />
-          <span className="text-sm">需要配置</span>
-          <span className="text-xs text-primary-foreground/80">访问完整管理功能</span>
-        </Button>
-      </div>
-
-      <Button variant="ghost" onClick={handleBack} className="w-full">
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        返回上一步
-      </Button>
-    </div>
-  );
-
-  // 渲染TOKEN类型选择
-  const renderTokenTypeStep = () => (
-    <div className="space-y-4">
-      <div className="text-center py-4">
-        <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-          <Shield className="h-6 w-6 text-primary" />
-        </div>
-        <h3 className="text-lg font-medium mb-2">选择 TOKEN 类型</h3>
-        <p className="text-sm text-muted-foreground">
-          请选择您要配置的管理员 TOKEN 类型
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3">
-        <Button
-          variant="outline"
-          className="flex items-center gap-3 h-auto py-4 justify-start px-4"
-          onClick={() => handleChooseTokenType(TOKEN_TYPE_PERMANENT)}
-        >
-          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center flex-shrink-0">
-            <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div className="text-left">
-            <span className="text-sm font-medium block">永久 TOKEN</span>
-            <span className="text-xs text-muted-foreground">服务器配置的长期有效 TOKEN</span>
-          </div>
-        </Button>
-        <Button
-          variant="outline"
-          className="flex items-center gap-3 h-auto py-4 justify-start px-4"
-          onClick={() => handleChooseTokenType(TOKEN_TYPE_TEMP)}
-        >
-          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
-            <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="text-left">
-            <span className="text-sm font-medium block">临时 TOKEN</span>
-            <span className="text-xs text-muted-foreground">通过验证码获取，有效期4小时</span>
-          </div>
-        </Button>
-      </div>
-
-      <Button variant="ghost" onClick={handleBack} className="w-full">
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        返回
-      </Button>
-    </div>
-  );
-
-  // 渲染第三步：配置TOKEN
-  const renderTokenConfigStep = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="adminToken" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            {tokenType === TOKEN_TYPE_TEMP ? '临时 TOKEN' : '永久 TOKEN'}
-          </Label>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentStep(STEP_TOKEN_TYPE);
-              setAdminToken('');
-              otpAuth.reset();
-            }}
-          >
-            切换类型
-          </Button>
-        </div>
-        <Input
-          id="adminToken"
-          type="password"
-          placeholder={tokenType === TOKEN_TYPE_TEMP ? '通过验证码获取的临时 TOKEN' : '服务器配置的永久 ADMIN_TOKEN'}
-          value={adminToken}
-          onChange={(e) => setAdminToken(e.target.value)}
-        />
-        {tokenType === TOKEN_TYPE_TEMP ? (
-          <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <AlertDescription className="text-xs text-blue-700 dark:text-blue-300">
-              临时 TOKEN 有效期4小时，IP变化可能导致被封禁
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-xs text-amber-700 dark:text-amber-300">
-              永久 TOKEN 是服务器配置的 ADMIN_TOKEN，长期有效
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* 验证码区域 - 选择临时TOKEN时直接显示 */}
-      {tokenType === TOKEN_TYPE_TEMP && !adminToken && (
-        <div className="border rounded-lg p-3 space-y-3">
-          {otpAuth.step === 'request' && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                点击下方按钮请求验证码，验证码将显示在服务器终端
-              </p>
-              <Button
-                onClick={otpAuth.requestOtp}
-                size="sm"
-                className="w-full"
-                disabled={otpAuth.loading}
-              >
-                {otpAuth.loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Lock className="h-4 w-4 mr-2" />
-                )}
-                请求验证码
-              </Button>
-            </div>
-          )}
-
-          {otpAuth.step === 'verify' && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                <span>会话 ID: {otpAuth.ssid.slice(0, 8)}...</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                请查看服务器终端获取 8 位验证码
-              </p>
-              <Input
-                placeholder="输入 8 位验证码"
-                value={otpAuth.otp}
-                onChange={(e) => otpAuth.setOtp(e.target.value)}
-                maxLength={8}
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={async () => {
-                    const token = await otpAuth.verifyOtp();
-                    if (token) {
-                      handleOtpSuccess(token);
-                    }
-                  }}
-                  size="sm"
-                  className="flex-1"
-                  disabled={otpAuth.loading}
-                >
-                  {otpAuth.loading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Unlock className="h-4 w-4 mr-2" />
-                  )}
-                  验证并保存
-                </Button>
-                <Button variant="outline" size="sm" onClick={otpAuth.reset}>
-                  重置
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {otpAuth.step === 'success' && (
-            <div className="space-y-3">
-              <div className="p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
-                <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">认证成功</span>
-                </div>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  有效期至: {new Date(otpAuth.expiresAt).toLocaleString()}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={otpAuth.tempToken}
-                  readOnly
-                  type="password"
-                />
-                <Button variant="outline" size="sm" onClick={otpAuth.copyToken}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button
-                onClick={() => handleOtpSuccess(otpAuth.tempToken)}
-                size="sm"
-                className="w-full"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                保存配置
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-2 pt-2">
-        <Button variant="outline" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          返回
-        </Button>
-        <Button onClick={handleSaveToken} className="flex-1" disabled={!adminToken}>
-          <Save className="h-4 w-4 mr-2" />
-          保存配置
-        </Button>
-      </div>
-    </div>
-  );
-
-  // 根据当前步骤渲染内容
-  const renderContent = () => {
-    switch (currentStep) {
-      case STEP_URL:
-        return renderUrlStep();
-      case STEP_TOKEN_NEED:
-        return renderTokenNeedStep();
-      case STEP_TOKEN_TYPE:
-        return renderTokenTypeStep();
-      case STEP_TOKEN_CONFIG:
-        return renderTokenConfigStep();
-      default:
-        return renderUrlStep();
-    }
   };
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       setOpen(newOpen);
       onOpenChange?.(newOpen);
-      if (!newOpen) {
-        setTimeout(() => setCurrentStep(STEP_URL), 300);
-      }
     }}>
       <DialogTrigger asChild>
         {children || (
@@ -726,17 +401,175 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
             </Button>
           </div>
           <DialogDescription>
-            {currentStep === STEP_URL && '配置 API 服务器地址'}
-            {currentStep === STEP_TOKEN_NEED && '选择是否需要配置管理员 TOKEN'}
-            {currentStep === STEP_TOKEN_TYPE && '选择管理员 TOKEN 类型'}
-            {currentStep === STEP_TOKEN_CONFIG && '配置管理员 TOKEN'}
+            配置 API 服务器地址
           </DialogDescription>
         </DialogHeader>
 
-        {renderStepIndicator()}
+        <div className="pt-2 space-y-4">
+          {isHttpsPage && (
+            <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertDescription className="text-xs text-amber-700 dark:text-amber-300">
+                当前页面使用 HTTPS，只能访问 HTTPS 地址或本地地址（127.0.0.1、localhost、192.168.x.x、10.x.x.x）
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <div className="pt-2">
-          {renderContent()}
+          {/* 配置切换区域 */}
+          {savedConfigs.length > 0 && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                切换已保存的配置
+              </Label>
+              <div className="flex gap-2">
+                <Select
+                  value={selectedConfigId}
+                  onValueChange={(value) => {
+                    const config = savedConfigs.find(c => c.id === value);
+                    if (config) {
+                      loadConfig(config);
+                      toast.success(`已切换到: ${config.name}`);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="选择已保存的配置..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedConfigs.map((config) => (
+                      <SelectItem key={config.id} value={config.id}>
+                        <div className="flex items-center justify-between w-full gap-4">
+                          <span className="truncate">{config.name}</span>
+                          <span className="text-xs text-muted-foreground">{config.baseUrl}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={createNewConfig}
+                  title="新建配置"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 配置名称编辑 */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Edit2 className="h-4 w-4" />
+              配置名称
+            </Label>
+            {isEditingName ? (
+              <div className="flex gap-2">
+                <Input
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  placeholder="输入配置名称"
+                  autoFocus
+                />
+                <Button size="icon" variant="ghost" onClick={updateConfigName}>
+                  <Check className="h-4 w-4 text-green-500" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => setIsEditingName(false)}>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={currentConfigName}
+                  placeholder="默认使用API地址作为名称"
+                  readOnly
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    setEditingName(currentConfigName);
+                    setIsEditingName(true);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                {selectedConfigId && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => deleteConfig(selectedConfigId)}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="baseUrl" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              API 地址
+            </Label>
+            <div className="relative">
+              <Input
+                id="baseUrl"
+                placeholder={isHttpsPage ? "https://example.com:12347 或 http://127.0.0.1:12347" : "http://127.0.0.1:12347"}
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
+              {isCheckingUrl ? (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              ) : baseUrl && (
+                <div className={`absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${isUrlValid && checkUrlSecurity(baseUrl).valid ? 'bg-green-500' : 'bg-red-500'}`} />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isHttpsPage ? '例如: https://api.example.com:12347 或 http://127.0.0.1:12347' : '例如: http://127.0.0.1:12347'}
+            </p>
+            {baseUrl && !isCheckingUrl && (
+              <p className={`text-xs ${isUrlValid && checkUrlSecurity(baseUrl).valid ? 'text-green-600' : 'text-red-600'}`}>
+                {!checkUrlSecurity(baseUrl).valid
+                  ? checkUrlSecurity(baseUrl).message
+                  : isUrlValid
+                    ? 'API 地址有效'
+                    : 'API 地址无效或无法连接'}
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button onClick={handleSaveUrl} className="flex-1" disabled={!isUrlValid || !checkUrlSecurity(baseUrl).valid}>
+              <Save className="h-4 w-4 mr-2" />
+              保存配置
+            </Button>
+            <Button variant="outline" onClick={handleTestConnection} disabled={isTesting || !baseUrl || !checkUrlSecurity(baseUrl).valid}>
+              {isTesting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <TestTube className="h-4 w-4 mr-2" />
+              )}
+              测试
+            </Button>
+          </div>
+
+          {/* 保存到列表按钮 */}
+          {baseUrl && (
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={saveCurrentConfig}
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              {selectedConfigId ? '更新到配置列表' : '保存到配置列表'}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
