@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# post-commit hook
+# 在提交后自动生成并提交 changelog.json
+
+# 检查是否有文件正在暂存区（避免递归）
+if git diff --cached --quiet; then
+    # 没有暂存的文件，可以安全地生成 changelog
+    
+    # 获取当前分支名
+    BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "HEAD")
+    
+    # 避免在 detached HEAD 状态下执行
+    if [ "$BRANCH" = "HEAD" ]; then
+        exit 0
+    fi
+    
+    # 生成 changelog
+    echo "[git-hook] 正在生成 changelog.json..."
+    node scripts/generate-changelog.js
+    
+    # 检查是否有变更
+    if ! git diff --quiet public/changelog.json; then
+        echo "[git-hook] 发现 changelog.json 变更，正在自动提交..."
+        
+        # 暂存 changelog.json
+        git add public/changelog.json
+        
+        # 使用 --no-verify 避免触发 pre-commit hook，使用 --no-post-rewrite 避免触发 rebase 相关问题
+        git commit --no-verify -m "chore: 更新 changelog.json [auto]"
+        
+        echo "[git-hook] changelog.json 已自动提交"
+    fi
+fi
+
+exit 0

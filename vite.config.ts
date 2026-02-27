@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 import { execSync } from 'child_process'
+import { existsSync, readFileSync } from 'fs'
 
 // Git 提交类型映射
 const typeMap: Record<string, string> = {
@@ -13,7 +14,7 @@ const typeMap: Record<string, string> = {
   refactor: '重构',
   perf: '性能优化',
   test: '测试',
-  chore: '杂项',
+  chore: '构建/工具',
   ci: 'CI/CD',
   build: '构建',
   revert: '回滚',
@@ -39,8 +40,8 @@ function getGitCommitHash() {
   }
 }
 
-// 获取 Git 提交历史
-function getGitCommits(): GitCommit[] {
+// 从 Git 获取提交历史
+function getGitCommitsFromGit(): GitCommit[] {
   try {
     // 获取格式化的提交日志: hash|date|message|author
     const output = execSync(
@@ -86,6 +87,47 @@ function getGitCommits(): GitCommit[] {
   } catch {
     return []
   }
+}
+
+// 从 JSON 文件获取提交历史（用于 Cloudflare Pages 等浅克隆环境）
+function getGitCommitsFromFile(): GitCommit[] {
+  try {
+    const changelogPath = path.resolve(__dirname, './public/changelog.json')
+    if (existsSync(changelogPath)) {
+      const content = readFileSync(changelogPath, 'utf-8')
+      const data = JSON.parse(content)
+      if (data.commits && Array.isArray(data.commits)) {
+        console.log(`[vite] 从 changelog.json 加载了 ${data.commits.length} 条提交记录`)
+        return data.commits
+      }
+    }
+  } catch (error) {
+    console.warn('[vite] 读取 changelog.json 失败:', error)
+  }
+  return []
+}
+
+// 获取 Git 提交历史（优先从 Git 获取，失败则从文件获取）
+function getGitCommits(): GitCommit[] {
+  // 首先尝试从 Git 获取
+  const gitCommits = getGitCommitsFromGit()
+
+  // 如果获取到多条记录，说明不是浅克隆，直接使用
+  if (gitCommits.length > 1) {
+    return gitCommits
+  }
+
+  // 如果只有一条或没有，可能是浅克隆，尝试从文件获取
+  if (gitCommits.length <= 1) {
+    console.log('[vite] Git 历史记录较少，尝试从 changelog.json 加载...')
+    const fileCommits = getGitCommitsFromFile()
+    if (fileCommits.length > 0) {
+      return fileCommits
+    }
+  }
+
+  // 返回 Git 获取的结果（即使只有一条）
+  return gitCommits
 }
 
 // https://vite.dev/config/

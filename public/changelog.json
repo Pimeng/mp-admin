@@ -1,0 +1,420 @@
+{
+  "generatedAt": "2026-02-27T21:46:08.050Z",
+  "totalCommits": 46,
+  "commits": [
+    {
+      "hash": "b7df43f",
+      "date": "2026-02-28 04:42:03 +0800",
+      "message": "feat: 更新历史记录展示",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "更新历史记录展示",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "5d0dda1",
+      "date": "2026-02-28 02:07:56 +0800",
+      "message": "feat: 新增配置一键切换功能",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "新增配置一键切换功能",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "bc1495e",
+      "date": "2026-02-28 00:56:00 +0800",
+      "message": "feat: https下禁止使用http外部地址",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "https下禁止使用http外部地址",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "de52366",
+      "date": "2026-02-26 21:56:50 +0800",
+      "message": "feat: 谱面分享站API支持",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "谱面分享站API支持",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "0cca91b",
+      "date": "2026-02-26 03:27:36 +0800",
+      "message": "fix: 修正准备态显示问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修正准备态显示问题",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "ac363a2",
+      "date": "2026-02-26 02:59:57 +0800",
+      "message": "fix: 修复传入API地址时，重复弹出通知",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修复传入API地址时，重复弹出通知",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "acc7996",
+      "date": "2026-02-26 02:36:37 +0800",
+      "message": "chore: 更新多人联机服务器监测地址",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "更新多人联机服务器监测地址",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "8e3396c",
+      "date": "2026-02-26 02:35:04 +0800",
+      "message": "refactor: 重构页面代码",
+      "type": "refactor",
+      "typeLabel": "重构",
+      "content": "重构页面代码",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "bf5d666",
+      "date": "2026-02-26 02:17:06 +0800",
+      "message": "feat: 深色模式",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "深色模式",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "ee6216b",
+      "date": "2026-02-23 20:27:17 +0800",
+      "message": "feat: 动态调整房间列表长度",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "动态调整房间列表长度",
+      "author": "皮梦"
+    },
+    {
+      "hash": "89750d3",
+      "date": "2026-02-23 20:21:25 +0800",
+      "message": "refactor: 重构页面框架，调整相应管理员后台位置，调整临时TOKEN逻辑",
+      "type": "refactor",
+      "typeLabel": "重构",
+      "content": "重构页面框架，调整相应管理员后台位置，调整临时TOKEN逻辑",
+      "author": "皮梦"
+    },
+    {
+      "hash": "ed254ca",
+      "date": "2026-02-23 16:42:11 +0800",
+      "message": "fix: 修正重复弹出的通知",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修正重复弹出的通知",
+      "author": "皮梦"
+    },
+    {
+      "hash": "61f74d4",
+      "date": "2026-02-23 16:37:08 +0800",
+      "message": "feat: 添加commit hash显示，优化Footer",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加commit hash显示，优化Footer",
+      "author": "皮梦"
+    },
+    {
+      "hash": "2dfb36f",
+      "date": "2026-02-18 17:45:39 +0800",
+      "message": "feat: 优化 toast 样式",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "优化 toast 样式",
+      "author": "皮梦"
+    },
+    {
+      "hash": "b96e474",
+      "date": "2026-02-18 17:41:13 +0800",
+      "message": "fix: 修正获取房间数量的逻辑",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修正获取房间数量的逻辑",
+      "author": "皮梦"
+    },
+    {
+      "hash": "4974928",
+      "date": "2026-02-16 22:53:11 +0800",
+      "message": "feat: 支持地址栏导入API地址",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "支持地址栏导入API地址",
+      "author": "皮梦"
+    },
+    {
+      "hash": "d1cd741",
+      "date": "2026-02-16 17:06:29 +0800",
+      "message": "fix: 分割太细导致js加载问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "分割太细导致js加载问题",
+      "author": "皮梦"
+    },
+    {
+      "hash": "8886709",
+      "date": "2026-02-16 17:00:01 +0800",
+      "message": "feat: 智能记忆访问的地方，浏览器加载完毕自动回到上一次的地方",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "智能记忆访问的地方，浏览器加载完毕自动回到上一次的地方",
+      "author": "皮梦"
+    },
+    {
+      "hash": "eaa3dab",
+      "date": "2026-02-15 02:14:04 +0800",
+      "message": "fix: 修复公共面板房间列表空白区域过多的问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修复公共面板房间列表空白区域过多的问题",
+      "author": "皮梦"
+    },
+    {
+      "hash": "a93c81a",
+      "date": "2026-02-15 02:06:37 +0800",
+      "message": "chore: 版本号",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "版本号",
+      "author": "皮梦"
+    },
+    {
+      "hash": "66f689d",
+      "date": "2026-02-15 02:05:34 +0800",
+      "message": "feat: 优化谱面回放读取逻辑",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "优化谱面回放读取逻辑",
+      "author": "皮梦"
+    },
+    {
+      "hash": "23b8184",
+      "date": "2026-02-15 00:03:13 +0800",
+      "message": "feat: 浏览器本地缓存Phira登录数据",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "浏览器本地缓存Phira登录数据",
+      "author": "皮梦"
+    },
+    {
+      "hash": "75d1796",
+      "date": "2026-02-14 23:20:32 +0800",
+      "message": "chore: 前端显示版本号",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "前端显示版本号",
+      "author": "皮梦"
+    },
+    {
+      "hash": "615bbc7",
+      "date": "2026-02-14 23:14:12 +0800",
+      "message": "feat: 优化前端布局",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "优化前端布局",
+      "author": "皮梦"
+    },
+    {
+      "hash": "0329992",
+      "date": "2026-02-14 22:50:43 +0800",
+      "message": "feat: 优化最大人数设置项，使其更直观",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "优化最大人数设置项，使其更直观",
+      "author": "皮梦"
+    },
+    {
+      "hash": "45c8f80",
+      "date": "2026-02-14 19:58:41 +0800",
+      "message": "feat: 增加对访客Websocket的支持",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "增加对访客Websocket的支持",
+      "author": "皮梦"
+    },
+    {
+      "hash": "114aea9",
+      "date": "2026-02-14 19:55:44 +0800",
+      "message": "feat: 增加显示总玩家/房间数",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "增加显示总玩家/房间数",
+      "author": "皮梦"
+    },
+    {
+      "hash": "275ddec",
+      "date": "2026-02-14 07:02:47 +0800",
+      "message": "chore: 纠正Footer",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "纠正Footer",
+      "author": "皮梦"
+    },
+    {
+      "hash": "f691acd",
+      "date": "2026-02-14 07:00:56 +0800",
+      "message": "feat: 优化登录后获取谱面回放逻辑",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "优化登录后获取谱面回放逻辑",
+      "author": "皮梦"
+    },
+    {
+      "hash": "307070d",
+      "date": "2026-02-14 06:47:07 +0800",
+      "message": "fix: 纠正token使用",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "纠正token使用",
+      "author": "皮梦"
+    },
+    {
+      "hash": "acccb81",
+      "date": "2026-02-14 06:42:21 +0800",
+      "message": "feat: 添加当前用户信息获取及展示功能",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加当前用户信息获取及展示功能",
+      "author": "皮梦"
+    },
+    {
+      "hash": "3b4d210",
+      "date": "2026-02-14 06:30:04 +0800",
+      "message": "feat: 添加访客模式用户详情弹窗并更新项目配置",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加访客模式用户详情弹窗并更新项目配置",
+      "author": "皮梦"
+    },
+    {
+      "hash": "cedead4",
+      "date": "2026-02-14 06:19:32 +0800",
+      "message": "feat: 添加用户和谱面详情弹窗功能",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加用户和谱面详情弹窗功能",
+      "author": "皮梦"
+    },
+    {
+      "hash": "2282302",
+      "date": "2026-02-14 06:10:53 +0800",
+      "message": "feat: 公共页面新增单独房间页面",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "公共页面新增单独房间页面",
+      "author": "皮梦"
+    },
+    {
+      "hash": "cbf4c0f",
+      "date": "2026-02-14 05:51:50 +0800",
+      "message": "fix: 应该先储存成绩ID然后再计算相对应成绩",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "应该先储存成绩ID然后再计算相对应成绩",
+      "author": "皮梦"
+    },
+    {
+      "hash": "56a5155",
+      "date": "2026-02-14 05:40:46 +0800",
+      "message": "fix: 修复不弹窗的问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修复不弹窗的问题",
+      "author": "皮梦"
+    },
+    {
+      "hash": "1ac1d82",
+      "date": "2026-02-14 05:27:59 +0800",
+      "message": "feat: 最优成绩弹窗提示",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "最优成绩弹窗提示",
+      "author": "皮梦"
+    },
+    {
+      "hash": "63a3a01",
+      "date": "2026-02-14 05:10:43 +0800",
+      "message": "fix: 构建错误",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "构建错误",
+      "author": "皮梦"
+    },
+    {
+      "hash": "d5efcfd",
+      "date": "2026-02-14 04:46:30 +0800",
+      "message": "chore: update pnpm lock file",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "update pnpm lock file",
+      "author": "皮梦"
+    },
+    {
+      "hash": "287b31a",
+      "date": "2026-02-14 04:31:48 +0800",
+      "message": "chore: 使用swal2",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "使用swal2",
+      "author": "皮梦"
+    },
+    {
+      "hash": "f04aac4",
+      "date": "2026-02-14 04:26:51 +0800",
+      "message": "chore: 补足修改最大人数部分",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "补足修改最大人数部分",
+      "author": "皮梦"
+    },
+    {
+      "hash": "dced2d0",
+      "date": "2026-02-14 04:23:57 +0800",
+      "message": "feat: 添加Websocket支持",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加Websocket支持",
+      "author": "皮梦"
+    },
+    {
+      "hash": "3db0382",
+      "date": "2026-02-14 03:33:10 +0800",
+      "message": "fix: 修复用户明明在线但是断开连接按钮不能用的问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修复用户明明在线但是断开连接按钮不能用的问题",
+      "author": "皮梦"
+    },
+    {
+      "hash": "dcd4e7f",
+      "date": "2026-02-14 03:24:38 +0800",
+      "message": "feat: 新增房间信息页面",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "新增房间信息页面",
+      "author": "皮梦"
+    },
+    {
+      "hash": "aa65774",
+      "date": "2026-02-14 02:30:22 +0800",
+      "message": "fix: no use temp token",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "no use temp token",
+      "author": "皮梦"
+    },
+    {
+      "hash": "75b027a",
+      "date": "2026-02-14 02:26:55 +0800",
+      "message": "first commit",
+      "type": "other",
+      "typeLabel": "其他",
+      "content": "first commit",
+      "author": "皮梦"
+    }
+  ]
+}
