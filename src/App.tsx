@@ -15,6 +15,7 @@ import { phiraApiService } from '@/services/phiraApi';
 import { useRouteRestore } from '@/hooks/useRouteRestore';
 import { useUrlConfig } from '@/hooks/useUrlConfig';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { ChangelogDialog } from '@/components/ChangelogDialog';
 import { version } from '../package.json';
 import {
   Server,
@@ -248,10 +249,12 @@ function MainLayout() {
                   已登录
                 </span>
               )}
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <Tag className="h-3 w-3" />
-                前端版本 v{version}
-              </span>
+              <ChangelogDialog>
+                <button className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                  <Tag className="h-3 w-3" />
+                  前端版本 v{version}
+                </button>
+              </ChangelogDialog>
               <span className="flex items-center gap-1 text-muted-foreground" title="Git Commit Hash">
                 <span className="text-xs">({__GIT_COMMIT_HASH__})</span>
               </span>

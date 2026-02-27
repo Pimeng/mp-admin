@@ -4,6 +4,32 @@ import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 import { execSync } from 'child_process'
 
+// Git 提交类型映射
+const typeMap: Record<string, string> = {
+  feat: '新功能',
+  fix: '修复',
+  docs: '文档',
+  style: '样式',
+  refactor: '重构',
+  perf: '性能优化',
+  test: '测试',
+  chore: '杂项',
+  ci: 'CI/CD',
+  build: '构建',
+  revert: '回滚',
+}
+
+// 解析提交信息
+interface GitCommit {
+  hash: string
+  date: string
+  message: string
+  type: string
+  typeLabel: string
+  content: string
+  author: string
+}
+
 // 获取 git commit hash
 function getGitCommitHash() {
   try {
@@ -13,12 +39,62 @@ function getGitCommitHash() {
   }
 }
 
+// 获取 Git 提交历史
+function getGitCommits(): GitCommit[] {
+  try {
+    // 获取格式化的提交日志: hash|date|message|author
+    const output = execSync(
+      'git log --pretty=format:"%h|%ai|%s|%an" --no-merges',
+      { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }
+    )
+
+    const commits: GitCommit[] = []
+    const lines = output.trim().split('\n')
+
+    for (const line of lines) {
+      const parts = line.split('|')
+      if (parts.length >= 4) {
+        const [hash, date, message, author] = parts
+        const cleanMessage = message.trim()
+
+        // 解析提交类型
+        const typeMatch = cleanMessage.match(/^(\w+)(?:\(([^)]+)\))?:\s*(.+)$/)
+        let type = 'other'
+        let typeLabel = '其他'
+        let content = cleanMessage
+
+        if (typeMatch) {
+          type = typeMatch[1].toLowerCase()
+          // scope = typeMatch[2] || ''
+          content = typeMatch[3]
+          typeLabel = typeMap[type] || '其他'
+        }
+
+        commits.push({
+          hash,
+          date,
+          message: cleanMessage,
+          type,
+          typeLabel,
+          content,
+          author,
+        })
+      }
+    }
+
+    return commits
+  } catch {
+    return []
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
   plugins: [inspectAttr(), react()],
   define: {
     __GIT_COMMIT_HASH__: JSON.stringify(getGitCommitHash()),
+    __GIT_COMMITS__: JSON.stringify(getGitCommits()),
   },
   resolve: {
     alias: {
