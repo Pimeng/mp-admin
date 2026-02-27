@@ -1,7 +1,34 @@
 {
-  "generatedAt": "2026-02-27T21:46:08.050Z",
-  "totalCommits": 46,
+  "generatedAt": "2026-02-27T22:03:26.651Z",
+  "totalCommits": 49,
   "commits": [
+    {
+      "hash": "0cd475b",
+      "date": "2026-02-28 06:03:25 +0800",
+      "message": "chore: 过滤自动生成的提交",
+      "type": "chore",
+      "typeLabel": "构建/工具",
+      "content": "过滤自动生成的提交",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "9104196",
+      "date": "2026-02-28 06:00:55 +0800",
+      "message": "fix: git钩子修正",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "git钩子修正",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "558f409",
+      "date": "2026-02-28 05:53:55 +0800",
+      "message": "fix: 修正Cloudflare Pages构建时只是用最新提交而导致更新日志只有最新一条的问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修正Cloudflare Pages构建时只是用最新提交而导致更新日志只有最新一条的问题",
+      "author": "Pimeng"
+    },
     {
       "hash": "b7df43f",
       "date": "2026-02-28 04:42:03 +0800",
