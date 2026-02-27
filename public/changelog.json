@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-02-27T22:03:26.651Z",
-  "totalCommits": 49,
+  "generatedAt": "2026-02-27T22:28:29.364Z",
+  "totalCommits": 51,
   "commits": [
+    {
+      "hash": "e07e9e6",
+      "date": "2026-02-28 06:28:28 +0800",
+      "message": "fix: 更正多人链接可用性链接，调整Footer",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "更正多人链接可用性链接，调整Footer",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "cb54188",
+      "date": "2026-02-28 06:03:25 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "0cd475b",
       "date": "2026-02-28 06:03:25 +0800",
