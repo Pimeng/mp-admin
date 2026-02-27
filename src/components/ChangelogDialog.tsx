@@ -7,8 +7,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { GitCommit, Clock, User } from 'lucide-react'
+import { GitCommit, Clock, User, Sparkles, Bug, BookOpen, Palette, Hammer, Zap, FlaskConical, Wrench, Workflow, Package, RotateCcw, HelpCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 
@@ -26,20 +25,36 @@ interface ChangelogDialogProps {
   children: React.ReactNode
 }
 
+// 提交类型对应的图标
+const typeIcons: Record<string, React.ReactNode> = {
+  feat: <Sparkles className="h-4 w-4" />,
+  fix: <Bug className="h-4 w-4" />,
+  docs: <BookOpen className="h-4 w-4" />,
+  style: <Palette className="h-4 w-4" />,
+  refactor: <Hammer className="h-4 w-4" />,
+  perf: <Zap className="h-4 w-4" />,
+  test: <FlaskConical className="h-4 w-4" />,
+  chore: <Wrench className="h-4 w-4" />,
+  ci: <Workflow className="h-4 w-4" />,
+  build: <Package className="h-4 w-4" />,
+  revert: <RotateCcw className="h-4 w-4" />,
+  other: <HelpCircle className="h-4 w-4" />,
+}
+
 // 提交类型对应的颜色
 const typeColors: Record<string, string> = {
-  feat: 'bg-green-500/10 text-green-600 border-green-500/20',
-  fix: 'bg-red-500/10 text-red-600 border-red-500/20',
-  docs: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  style: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-  refactor: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  perf: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  test: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
-  chore: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
-  ci: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
-  build: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
-  revert: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
-  other: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+  feat: 'text-green-600',
+  fix: 'text-red-600',
+  docs: 'text-blue-600',
+  style: 'text-purple-600',
+  refactor: 'text-yellow-600',
+  perf: 'text-orange-600',
+  test: 'text-pink-600',
+  chore: 'text-gray-600',
+  ci: 'text-cyan-600',
+  build: 'text-indigo-600',
+  revert: 'text-rose-600',
+  other: 'text-slate-600',
 }
 
 export function ChangelogDialog({ children }: ChangelogDialogProps) {
@@ -105,25 +120,27 @@ export function ChangelogDialog({ children }: ChangelogDialogProps) {
 
                   {/* 提交列表 */}
                   <div className="ml-7 space-y-3">
-                    {dateCommits.map((commit) => (
-                      <div
-                        key={commit.hash}
-                        className="group relative bg-muted/50 rounded-lg p-3 hover:bg-muted transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs shrink-0 ${
-                              typeColors[commit.type] || typeColors.other
-                            }`}
-                          >
-                            {commit.typeLabel}
-                          </Badge>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground leading-relaxed">
+                    {dateCommits.map((commit) => {
+                      const icon = typeIcons[commit.type] || typeIcons.other
+                      const colorClass = typeColors[commit.type] || typeColors.other
+
+                      return (
+                        <div
+                          key={commit.hash}
+                          className="group relative bg-muted/50 rounded-lg p-3 hover:bg-muted transition-colors"
+                        >
+                          <div className="flex flex-col gap-1">
+                            {/* 第一行：类型 */}
+                            <div className={`flex items-center gap-2 font-medium ${colorClass}`}>
+                              {icon}
+                              <span>{commit.typeLabel}</span>
+                            </div>
+                            {/* 第二行：内容 */}
+                            <p className="text-sm text-foreground leading-relaxed pl-6">
                               {commit.content}
                             </p>
-                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                            {/* 元信息 */}
+                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground pl-6">
                               <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
                                 {commit.hash}
                               </span>
@@ -141,8 +158,8 @@ export function ChangelogDialog({ children }: ChangelogDialogProps) {
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )
