@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,230 +14,27 @@ import {
   Lock,
   Unlock,
   RefreshCw,
-  Wifi,
-  WifiOff,
   Globe,
   Radio,
   Check,
-  Hourglass
+  Hourglass,
 } from 'lucide-react';
-import { apiService } from '@/services/api';
-import { phiraApiService } from '@/services/phiraApi';
+import { usePublicRoom } from '@/hooks/usePublicRoom';
+import { StateBadge } from '@/components/StateBadge';
+import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { UserDetailDialog } from '@/components/UserDetailDialog';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
-import { getStateBadgeConfig } from '@/lib/utils';
-import type { PublicRoom } from '@/types/api';
-
-interface Player {
-  id: number;
-  name: string;
-  is_ready?: boolean;
-}
-
-interface ExtendedPublicRoom extends PublicRoom {
-  max_users?: number;
-  current_users?: number;
-  monitors?: number;
-  ready_count?: number;
-  players_with_ready?: Player[];
-}
 
 export function PublicRoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const [room, setRoom] = useState<ExtendedPublicRoom | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
-  
-  // 用户详情弹窗状态
+
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
-  
-  // 谱面详情弹窗状态
   const [selectedChartId, setSelectedChartId] = useState<number | null>(null);
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
 
-  // WebSocket 状态
-  const [wsConnected, setWsConnected] = useState(false);
-  const [wsLogs, setWsLogs] = useState<string[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // 获取房间数据
-  const fetchRoomDetail = useCallback(async () => {
-    if (!roomId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const data = await apiService.getRooms();
-      const foundRoom = data.rooms.find(r => r.roomid === roomId);
-      if (foundRoom) {
-        // 扩展公共房间数据（模拟一些额外字段用于展示）
-        const extendedRoom: ExtendedPublicRoom = {
-          ...foundRoom,
-          max_users: 8, // 默认值
-          current_users: foundRoom.players?.length || 0,
-          monitors: 0, // 公共API不提供此数据
-        };
-        setRoom(extendedRoom);
-
-        // 可选：预加载房主和谱面信息到缓存
-        const hostId = parseInt(foundRoom.host?.id, 10);
-        if (!isNaN(hostId)) {
-          phiraApiService.getUserInfoCached(hostId).catch(() => {});
-        }
-
-        const chartId = parseInt(foundRoom.chart?.id, 10);
-        if (!isNaN(chartId)) {
-          phiraApiService.getChartInfoCached(chartId).catch(() => {});
-        }
-      } else {
-        setError('房间不存在或已解散');
-      }
-    } catch (err) {
-      setError('获取房间信息失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [roomId]);
-
-  // 初始加载
-  useEffect(() => {
-    fetchRoomDetail();
-  }, [fetchRoomDetail]);
-
-  // WebSocket 连接
-  useEffect(() => {
-    if (!roomId) return;
-
-    const baseUrl = apiService.getBaseUrl();
-    if (!baseUrl) return;
-
-    // 从 http://host:port 转换为 ws://host:port/ws
-    const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws';
-    console.log('[WebSocket] 连接地址:', wsUrl);
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('[WebSocket] 已连接');
-      setWsConnected(true);
-
-      // 订阅房间
-      ws.send(JSON.stringify({
-        type: 'subscribe',
-        roomId: roomId,
-      }));
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        console.log('[WebSocket] 收到消息:', message);
-
-        switch (message.type) {
-          case 'subscribed':
-            console.log('[WebSocket] 已订阅房间:', message.roomId);
-            break;
-
-          case 'room_update':
-            // 更新房间状态
-            if (message.data) {
-              const playersWithReady: Player[] = message.data.users?.map((u: any) => ({
-                id: u.id,
-                name: u.name,
-                is_ready: u.is_ready
-              })) || [];
-              const readyCount = playersWithReady.filter((p: Player) => p.is_ready).length;
-
-              const updatedRoom: ExtendedPublicRoom = {
-                roomid: message.data.roomid,
-                cycle: message.data.cycle,
-                lock: message.data.locked,
-                host: message.data.host || { id: '0', name: '未知' },
-                state: message.data.state || 'waiting',
-                chart: message.data.chart || { id: '0', name: '未选择' },
-                players: playersWithReady.map((p: Player) => ({ name: p.name, id: p.id })),
-                max_users: 8,
-                current_users: message.data.users?.length || 0,
-                monitors: message.data.monitors?.length || 0,
-                ready_count: readyCount,
-                players_with_ready: playersWithReady,
-              };
-              setRoom(updatedRoom);
-            }
-            break;
-
-          case 'room_log':
-            // 添加日志
-            setWsLogs(prev => {
-              const newLogs = [`[${new Date(message.data.timestamp).toLocaleTimeString()}] ${message.data.message}`, ...prev];
-              return newLogs.slice(0, 50); // 只保留最近50条
-            });
-            break;
-
-          case 'error':
-            console.error('[WebSocket] 错误:', message.message);
-            break;
-
-          case 'pong':
-            // 心跳响应
-            break;
-        }
-      } catch (error) {
-        console.error('[WebSocket] 解析消息失败:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('[WebSocket] 错误:', error);
-      setWsConnected(false);
-    };
-
-    ws.onclose = () => {
-      console.log('[WebSocket] 已断开');
-      setWsConnected(false);
-    };
-
-    // 心跳保持连接
-    heartbeatRef.current = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'ping' }));
-      }
-    }, 25000);
-
-    return () => {
-      if (heartbeatRef.current) {
-        clearInterval(heartbeatRef.current);
-      }
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'unsubscribe' }));
-        ws.close();
-      }
-    };
-  }, [roomId]);
-
-  // 自动刷新（每5秒）- 作为 WebSocket 的备用
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchRoomDetail();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchRoomDetail]);
-
-  const getStateBadge = (state: string) => {
-    const config = getStateBadgeConfig(state);
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const getStatusIcon = (connected: boolean = true) => {
-    return connected ? (
-      <Wifi className="h-4 w-4 text-green-500" />
-    ) : (
-      <WifiOff className="h-4 w-4 text-gray-400" />
-    );
-  };
+  const { room, isLoading, error, wsConnected, wsLogs, fetchRoomDetail } = usePublicRoom(roomId);
 
   const handleOpenUserDetail = (userId: number) => {
     setSelectedUserId(userId);
@@ -268,7 +65,7 @@ export function PublicRoomDetailPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className={`h-8 w-8 mx-auto mb-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-8 w-8 mx-auto mb-4 ${isLoading ? 'animate-spin' : ''}`} />
           <p className="text-muted-foreground">加载中...</p>
         </div>
       </div>
@@ -292,7 +89,7 @@ export function PublicRoomDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getStateBadge(room.state)}
+              <StateBadge state={room.state} />
               {room.lock ? (
                 <Badge variant="destructive" className="gap-1">
                   <Lock className="h-3 w-3" />
@@ -435,7 +232,7 @@ export function PublicRoomDetailPage() {
                         onClick={() => handleOpenUserDetail(player.id)}
                       >
                         <div className="flex items-center gap-3">
-                          {getStatusIcon(true)}
+                          <ConnectionStatus connected={true} showIconOnly />
                           <div>
                             <div className="font-medium flex items-center gap-2">
                               {player.name}
@@ -467,9 +264,7 @@ export function PublicRoomDetailPage() {
                             )
                           )}
                           {/* 在线状态 */}
-                          <div className="text-right text-sm">
-                            <span className="text-green-600">在线</span>
-                          </div>
+                          <ConnectionStatus connected={true} />
                         </div>
                       </div>
                     ))}
@@ -493,9 +288,9 @@ export function PublicRoomDetailPage() {
                   variant="outline"
                   className="w-full"
                   onClick={fetchRoomDetail}
-                  disabled={loading}
+                  disabled={isLoading}
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   刷新数据
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
@@ -520,7 +315,7 @@ export function PublicRoomDetailPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">当前状态</span>
-                    <span>{getStateBadge(room.state)}</span>
+                    <StateBadge state={room.state} />
                   </div>
                 </div>
               </CardContent>
