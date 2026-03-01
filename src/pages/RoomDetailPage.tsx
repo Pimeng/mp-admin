@@ -759,6 +759,11 @@ export function RoomDetailPage() {
                     {room.state.ready_count}/{room.users?.length || 0} 已准备
                   </Badge>
                 )}
+                {room.state?.type === 'playing' && room.state?.finished_users !== undefined && (
+                  <Badge variant="default" className="ml-2">
+                    {room.state.finished_users?.length || 0}/{room.users?.length || 0} 已完成
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -771,6 +776,8 @@ export function RoomDetailPage() {
                   <div className="space-y-2">
                     {room.users?.map((user) => {
                       const isReady = room.state?.ready_users?.includes(user.id);
+                      const isFinished = room.state?.finished_users?.includes(user.id);
+                      const isAborted = room.state?.aborted_users?.includes(user.id);
                       return (
                         <div
                           key={user.id}
@@ -803,6 +810,25 @@ export function RoomDetailPage() {
                                 <Badge variant="outline" className="text-muted-foreground">
                                   <Hourglass className="h-3 w-3 mr-1" />
                                   未准备
+                                </Badge>
+                              )
+                            )}
+                            {/* 游戏状态 */}
+                            {room.state?.type === 'playing' && (
+                              isFinished ? (
+                                <Badge variant="default" className="bg-green-500 text-white">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  已上传成绩
+                                </Badge>
+                              ) : isAborted ? (
+                                <Badge variant="destructive">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  已中止
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  <Hourglass className="h-3 w-3 mr-1" />
+                                  未上传成绩
                                 </Badge>
                               )
                             )}
