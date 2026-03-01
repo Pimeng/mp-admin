@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-03-01T13:40:58.348Z",
-  "totalCommits": 55,
+  "generatedAt": "2026-03-01T15:04:00.222Z",
+  "totalCommits": 57,
   "commits": [
+    {
+      "hash": "d13cd65",
+      "date": "2026-03-01 23:03:58 +0800",
+      "message": "refactor: 重构大量重复项，纠正网页逻辑，去除没用到的代码",
+      "type": "refactor",
+      "typeLabel": "重构",
+      "content": "重构大量重复项，纠正网页逻辑，去除没用到的代码",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "970b4e6",
+      "date": "2026-03-01 21:40:57 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "c45f01d",
       "date": "2026-03-01 21:40:57 +0800",
