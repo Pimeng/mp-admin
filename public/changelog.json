@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-02-27T22:33:24.598Z",
-  "totalCommits": 53,
+  "generatedAt": "2026-03-01T13:40:58.348Z",
+  "totalCommits": 55,
   "commits": [
+    {
+      "hash": "c45f01d",
+      "date": "2026-03-01 21:40:57 +0800",
+      "message": "feat: 增强显示成绩上传具体玩家详情",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "增强显示成绩上传具体玩家详情",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "f051acb",
+      "date": "2026-02-28 06:33:23 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "6c63f37",
       "date": "2026-02-28 06:33:23 +0800",
