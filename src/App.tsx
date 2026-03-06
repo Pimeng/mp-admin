@@ -16,6 +16,7 @@ import { useRouteRestore } from '@/hooks/useRouteRestore';
 import { useUrlConfig } from '@/hooks/useUrlConfig';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ChangelogDialog } from '@/components/ChangelogDialog';
+import { ClarityNotice } from '@/components/ClarityNotice';
 import { version } from '../package.json';
 import {
   Server,
@@ -264,6 +265,7 @@ function MainLayout() {
       </footer>
 
       <Toaster position="top-right" />
+      <ClarityNotice />
     </div>
   );
 }

@@ -164,3 +164,31 @@ input, textarea {
 .dark textarea {
   background-color: hsl(var(--input) / 0.3);
 }
+
+
+.hdr-scan {
+  overflow: hidden;
+  background: rgba(0, 255, 136, 0.1);
+  box-shadow: 0 0 30px rgba(133 77 14 0.5);
+}
+
+.hdr-scan::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.8) 50%,
+    transparent 60%
+  );
+  animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
