@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-04-20T14:42:26.112Z",
-  "totalCommits": 63,
+  "generatedAt": "2026-04-20T14:56:43.050Z",
+  "totalCommits": 65,
   "commits": [
+    {
+      "hash": "6605306",
+      "date": "2026-04-20 22:56:42 +0800",
+      "message": "feat: 添加房间 ID 组合框组件，支持直接输入和选择房间 ID",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加房间 ID 组合框组件，支持直接输入和选择房间 ID",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "3fe640c",
+      "date": "2026-04-20 22:42:25 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "21a75f8",
       "date": "2026-04-20 22:42:25 +0800",
