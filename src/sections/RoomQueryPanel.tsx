@@ -1,33 +1,36 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-
-import {
-  Users,
-  RefreshCw,
-  Globe,
-  Music
-} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Kbd, KbdGroup } from '@/components/ui/kbd';
+import { applyApiConfig } from '@/hooks/useApiConfig';
+import { getStateBadgeConfig } from '@/lib/utils';
 import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
 import { toast } from 'sonner';
-import { getStateBadgeConfig } from '@/lib/utils';
-import { applyApiConfig } from '@/hooks/useApiConfig';
+import { Globe, Music, RefreshCw, Search, Users, X } from 'lucide-react';
 
-import type { PublicRoom } from '@/types/api';
 import type { ChartInfo } from '@/services/phiraApi';
+import type { PublicRoom } from '@/types/api';
+
+type RankedRoom = {
+  room: PublicRoom;
+  index: number;
+  score: number;
+};
 
 export function RoomQueryPanel() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [chartInfos, setChartInfos] = useState<Map<number, ChartInfo>>(new Map());
   const hasAutoFetched = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // 加载谱面信息
   const loadChartInfo = useCallback(async (chartId: number) => {
     const info = await phiraApiService.getChartInfoCached(chartId);
     if (info) {
@@ -36,29 +39,52 @@ export function RoomQueryPanel() {
     return info;
   }, []);
 
-  // 从本地存储加载配置
+  const fetchRooms = useCallback(async () => {
+    const config = apiService.getConfig();
+    if (!config.baseUrl) {
+      toast.error('请先配置 API 地址');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await apiService.getRooms();
+      const roomsData = data.rooms || [];
+      setRooms(roomsData);
+
+      roomsData.forEach(room => {
+        if (room.chart?.id) {
+          loadChartInfo(Number(room.chart.id));
+        }
+      });
+
+      const playerCount = roomsData.reduce((sum, room) => sum + (room.players?.length || 0), 0);
+      toast.success(`获取到 ${roomsData.length} 个房间，共 ${playerCount} 名玩家`);
+    } catch {
+      toast.error('获取房间列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadChartInfo]);
+
   useEffect(() => {
     applyApiConfig();
 
-    // 检查是否有 URL 参数传入的配置
     const hasUrlConfig = searchParams.has('api_url') || searchParams.has('admin_token');
-
-    // 自动加载房间列表（只执行一次，且当没有 URL 配置时才自动获取）
     const savedUrl = localStorage.getItem('api_base_url') || '';
+
     if (savedUrl && !hasAutoFetched.current && !hasUrlConfig) {
       hasAutoFetched.current = true;
       fetchRooms();
     }
-  }, []);
+  }, [fetchRooms, searchParams]);
 
-  // 监听 URL 配置加载的房间数据
   useEffect(() => {
     const handleUrlConfigRoomsLoaded = (event: CustomEvent<PublicRoom[]>) => {
       const roomsData = event.detail;
       setRooms(roomsData);
       hasAutoFetched.current = true;
 
-      // 预加载谱面信息
       roomsData.forEach(room => {
         if (room.chart?.id) {
           loadChartInfo(Number(room.chart.id));
@@ -72,132 +98,235 @@ export function RoomQueryPanel() {
     };
   }, [loadChartInfo]);
 
-  const fetchRooms = async () => {
-    const config = apiService.getConfig();
-    if (!config.baseUrl) {
-      toast.error('请先配置 API 地址');
-      return;
-    }
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
 
-    setLoading(true);
-    try {
-      const data = await apiService.getRooms();
-      const roomsData = data.rooms || [];
-      setRooms(roomsData);
-      
-      // 预加载谱面信息
-      roomsData.forEach(room => {
-        if (room.chart?.id) {
-          loadChartInfo(Number(room.chart.id));
-        }
-      });
-      
-      const playerCount = roomsData.reduce((sum, room) => sum + (room.players?.length || 0), 0);
-      toast.success(`获取到 ${roomsData.length} 个房间，共 ${playerCount} 名玩家`);
-    } catch {
-      toast.error('获取房间列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const getStateBadge = (state: string) => {
     const config = getStateBadgeConfig(state);
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const rankRoom = (room: PublicRoom, index: number): RankedRoom | null => {
+    if (!normalizedQuery) {
+      return { room, index, score: 0 };
+    }
+
+    const roomId = room.roomid?.toLowerCase() || '';
+    const playerNames = room.players?.map(player => player.name?.toLowerCase() || '') || [];
+    const playerIds = room.players?.map(player => String(player.id)) || [];
+    const chartId = room.chart?.id ? String(room.chart.id).toLowerCase() : '';
+    const chartName = room.chart?.name?.toLowerCase() || '';
+    const chartInfo = room.chart?.id ? chartInfos.get(Number(room.chart.id)) : undefined;
+    const cachedChartId = chartInfo ? String(chartInfo.id).toLowerCase() : '';
+    const cachedChartName = chartInfo?.name?.toLowerCase() || '';
+
+    let score = -1;
+
+    if (roomId === normalizedQuery) score = Math.max(score, 400);
+    else if (roomId.startsWith(normalizedQuery)) score = Math.max(score, 320);
+    else if (roomId.includes(normalizedQuery)) score = Math.max(score, 260);
+
+    if (playerIds.some(id => id === normalizedQuery) || playerNames.some(name => name === normalizedQuery)) {
+      score = Math.max(score, 180);
+    } else if (
+      playerIds.some(id => id.includes(normalizedQuery)) ||
+      playerNames.some(name => name.includes(normalizedQuery))
+    ) {
+      score = Math.max(score, 140);
+    }
+
+    if (
+      chartId === normalizedQuery ||
+      cachedChartId === normalizedQuery ||
+      chartName === normalizedQuery ||
+      cachedChartName === normalizedQuery
+    ) {
+      score = Math.max(score, 110);
+    } else if (
+      chartId.includes(normalizedQuery) ||
+      cachedChartId.includes(normalizedQuery) ||
+      chartName.includes(normalizedQuery) ||
+      cachedChartName.includes(normalizedQuery)
+    ) {
+      score = Math.max(score, 90);
+    }
+
+    if (score < 0) {
+      return null;
+    }
+
+    return { room, index, score };
+  };
+
+  const filteredRooms = normalizedQuery
+    ? rooms
+        .map((room, index) => rankRoom(room, index))
+        .filter((item): item is RankedRoom => item !== null)
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .map(item => item.room)
+    : rooms;
+
+  const visiblePlayerCount = filteredRooms.reduce((sum, room) => sum + (room.players?.length || 0), 0);
+
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="animate-fade-in space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(320px,520px)_auto] md:items-center">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5" />
               房间列表
               {rooms.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {rooms.length} 个房间
+                  {filteredRooms.length}/{rooms.length} 个房间
                 </Badge>
               )}
             </div>
-            <Button size="sm" onClick={fetchRooms} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              刷新
-            </Button>
+
+            <div className="mx-auto flex w-full max-w-xl items-center justify-center">
+              <div className="relative w-full">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={event => setSearchQuery(event.target.value)}
+                  placeholder="搜索房间ID，或玩家名字/ID、谱面名字/ID"
+                  className="h-10 pl-9 pr-20"
+                />
+                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                  {searchQuery && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => {
+                        setSearchQuery('');
+                        searchInputRef.current?.focus();
+                      }}
+                      title="清空搜索"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <KbdGroup className="hidden sm:inline-flex">
+                    <Kbd>Ctrl</Kbd>
+                    <Kbd>K</Kbd>
+                  </KbdGroup>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-start md:justify-end">
+              <Button size="sm" onClick={fetchRooms} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                刷新
+              </Button>
+            </div>
           </CardTitle>
-          <CardDescription className="flex items-center gap-2">
+
+          <CardDescription className="flex flex-wrap items-center gap-2">
             <span>获取当前所有房间的基本信息</span>
             {rooms.length > 0 && (
-              <span className="text-muted-foreground">
-                | 总玩家数: {rooms.reduce((sum, room) => sum + (room.players?.length || 0), 0)} 人
-              </span>
+              <span className="text-muted-foreground">| 当前显示玩家数: {visiblePlayerCount} 人</span>
             )}
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           {rooms.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              暂无房间数据，点击刷新获取
+            <div className="py-8 text-center text-muted-foreground">暂无房间数据，点击刷新获取</div>
+          ) : filteredRooms.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              没有找到匹配的房间，可尝试搜索房间ID、玩家名字或谱面信息
             </div>
           ) : (
             <div className="space-y-3">
-              {rooms.map((room, index) => {
-                  const chartId = Number(room.chart?.id);
-                  const chartInfo = chartInfos.get(chartId);
-                  
-                  return (
-                    <div
-                      key={room.roomid}
-                      className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm group"
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{room.roomid}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1">
-                            {getStateBadge(room.state)}
-                            {room.lock && <Badge variant="destructive">锁定</Badge>}
-                            {room.cycle && <Badge variant="outline">循环</Badge>}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => navigate(`/public/room/${room.roomid}`)}
-                            title="访客视图"
-                          >
-                            <Globe className="h-4 w-4" />
-                          </Button>
+              {filteredRooms.map((room, index) => {
+                const chartId = Number(room.chart?.id);
+                const chartInfo = chartInfos.get(chartId);
+
+                return (
+                  <div
+                    key={room.roomid}
+                    className="group rounded-lg border p-3 transition-all duration-200 hover:border-primary/50 hover:shadow-sm"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-medium">{room.roomid}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          {getStateBadge(room.state)}
+                          {room.lock && <Badge variant="destructive">锁定</Badge>}
+                          {room.cycle && <Badge variant="outline">循环</Badge>}
                         </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <div>房主: {room.host?.name || '未知'} (ID: {room.host?.id || '-'})</div>
-                        <div className="flex items-center gap-2">
-                          <Music className="h-3 w-3" />
-                          <span>
-                            {chartInfo ? (
-                              <span className="text-foreground">
-                                {chartInfo.name}
-                                <span className="text-muted-foreground ml-1">
-                                  [{chartInfo.level}] by {chartInfo.charter}
-                                </span>
-                              </span>
-                            ) : room.chart?.id ? (
-                              <span>谱面 ID: {room.chart.id}</span>
-                            ) : (
-                              <span className="text-muted-foreground">未选择谱面</span>
-                            )}
-                          </span>
-                        </div>
-                        <div>玩家: {room.players?.length || 0}人</div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => navigate(`/public/room/${room.roomid}`)}
+                          title="访客视图"
+                        >
+                          <Globe className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <div>
+                        房主: {room.host?.name || '未知'} (ID: {room.host?.id || '-'})
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Music className="h-3 w-3" />
+                        <span>
+                          {chartInfo ? (
+                            <span className="text-foreground">
+                              {chartInfo.name}
+                              <span className="ml-1 text-muted-foreground">
+                                [{chartInfo.level}] by {chartInfo.charter}
+                              </span>
+                            </span>
+                          ) : room.chart?.id ? (
+                            <span>
+                              谱面: {room.chart.name || `ID ${room.chart.id}`} (ID: {room.chart.id})
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">未选择谱面</span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div>
+                        玩家: {room.players?.length || 0} 人
+                        {room.players && room.players.length > 0 && (
+                          <span className="ml-2">
+                            {room.players.map(player => `${player.name} (${player.id})`).join('、')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

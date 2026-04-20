@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
@@ -36,13 +36,20 @@ const mainTabs = [
   { path: '/admin/rooms', matchPath: '/admin', label: '\u7ba1\u7406\u5458', icon: Shield },
 ];
 
+export type MainLayoutContext = {
+  roomSearchQuery: string;
+};
+
 function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [configKey, setConfigKey] = useState(0);
+  const [roomSearchQuery] = useState('');
   const { hasUrlConfig, isValidating, applyConfig } = useUrlConfig();
   const location = useLocation();
+  const roomSearchInputRef = useRef<HTMLInputElement>(null);
+  const isRoomsPage = location.pathname === '/rooms' || location.pathname.startsWith('/rooms/');
 
   useEffect(() => {
     const savedUrl = localStorage.getItem('api_base_url') || '';
@@ -87,11 +94,28 @@ function MainLayout() {
     setIsLoggedIn(true);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isRoomsPage) return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        roomSearchInputRef.current?.focus();
+        roomSearchInputRef.current?.select();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isRoomsPage]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b bg-card animate-fade-in">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-primary p-2 transition-transform hover:scale-105">
                 <Server className="h-6 w-6 text-primary-foreground" />
@@ -190,7 +214,7 @@ function MainLayout() {
 
       <main className="container mx-auto px-4 py-6">
         <div key={configKey} className="animate-slide-in">
-          <Outlet />
+          <Outlet context={{ roomSearchQuery }} />
         </div>
       </main>
 

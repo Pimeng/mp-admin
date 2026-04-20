@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,7 @@ export function AdminApiPanel() {
   const location = useLocation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [userId, setUserId] = useState('');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [roomId, setRoomId] = useState('');
@@ -58,6 +59,7 @@ export function AdminApiPanel() {
   const [contestEnabled, setContestEnabled] = useState(false);
   const [whitelist, setWhitelist] = useState('');
   const [force, setForce] = useState(false);
+  const roomSearchInputRef = useRef<HTMLInputElement>(null);
   const currentTab = location.pathname.split('/').filter(Boolean)[1] || 'rooms';
   const activeTab = adminTabs.some((tab) => tab.value === currentTab) ? currentTab : 'rooms';
 
@@ -65,6 +67,23 @@ export function AdminApiPanel() {
     if (activeTab === 'messages') {
       void ensureAdminRoomsLoaded();
     }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (activeTab !== 'rooms') return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        roomSearchInputRef.current?.focus();
+        roomSearchInputRef.current?.select();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [activeTab]);
 
   const fetchAdminRooms = async () => {
@@ -318,6 +337,49 @@ export function AdminApiPanel() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const normalizedRoomQuery = roomSearchQuery.trim().toLowerCase();
+  const filteredRooms = normalizedRoomQuery
+    ? rooms
+        .map((room, index) => {
+          const roomId = room.roomid?.toLowerCase() || '';
+          const playerNames = room.users?.map(user => user.name?.toLowerCase() || '') || [];
+          const playerIds = room.users?.map(user => String(user.id)) || [];
+          const chartName = room.chart?.name?.toLowerCase() || '';
+          const chartId = room.chart?.id ? String(room.chart.id).toLowerCase() : '';
+
+          let score = -1;
+
+          if (roomId === normalizedRoomQuery) score = Math.max(score, 400);
+          else if (roomId.startsWith(normalizedRoomQuery)) score = Math.max(score, 320);
+          else if (roomId.includes(normalizedRoomQuery)) score = Math.max(score, 260);
+
+          if (
+            playerNames.some(name => name === normalizedRoomQuery) ||
+            playerIds.some(id => id === normalizedRoomQuery)
+          ) {
+            score = Math.max(score, 180);
+          } else if (
+            playerNames.some(name => name.includes(normalizedRoomQuery)) ||
+            playerIds.some(id => id.includes(normalizedRoomQuery))
+          ) {
+            score = Math.max(score, 140);
+          }
+
+          if (chartName === normalizedRoomQuery || chartId === normalizedRoomQuery) {
+            score = Math.max(score, 110);
+          } else if (chartName.includes(normalizedRoomQuery) || chartId.includes(normalizedRoomQuery)) {
+            score = Math.max(score, 90);
+          }
+
+          return { room, index, score };
+        })
+        .filter(item => item.score >= 0)
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .map(item => item.room)
+    : rooms;
+
+  const visibleUserCount = filteredRooms.reduce((sum, room) => sum + (room.users?.length || 0), 0);
+
   return (
     <Tabs
       value={activeTab}
@@ -337,26 +399,42 @@ export function AdminApiPanel() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
+                <CardTitle className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
                     房间列表
                     {rooms.length > 0 && (
                       <Badge variant="secondary" className="ml-2">
-                        {rooms.length} 个房间
+                        {filteredRooms.length}/{rooms.length} 个房间
                       </Badge>
                     )}
                   </div>
-                  <Button size="sm" onClick={fetchAdminRooms} disabled={loading}>
-                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    刷新
-                  </Button>
+                  <div className="flex w-full items-center justify-end gap-2 md:w-auto">
+                    <div className="relative w-full md:w-[420px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        ref={roomSearchInputRef}
+                        value={roomSearchQuery}
+                        onChange={(event) => setRoomSearchQuery(event.target.value)}
+                        placeholder="搜索房间ID，或玩家名字/ID、谱面名字/ID"
+                        className="h-10 pl-9 pr-16"
+                      />
+                      <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs text-muted-foreground">
+                        <span className="rounded border px-1.5 py-0.5">Ctrl</span>
+                        <span className="rounded border px-1.5 py-0.5">K</span>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={fetchAdminRooms} disabled={loading}>
+                      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                      刷新
+                    </Button>
+                  </div>
                 </CardTitle>
                 <CardDescription className="flex items-center gap-2">
                   <span>查看所有房间的详细状态</span>
                   {rooms.length > 0 && (
                     <span className="text-muted-foreground">
-                      | 总玩家数: {rooms.reduce((sum, room) => sum + (room.users?.length || 0), 0)} 人
+                      | 当前显示玩家数: {visibleUserCount} 人
                     </span>
                   )}
                 </CardDescription>
@@ -366,9 +444,13 @@ export function AdminApiPanel() {
                   <div className="text-center py-8 text-muted-foreground">
                     暂无房间数据，点击刷新获取
                   </div>
+                ) : filteredRooms.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    没有找到匹配的房间，可尝试搜索房间ID、玩家名字或谱面信息
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {rooms.map((room, index) => (
+                    {filteredRooms.map((room, index) => (
                         <div
                           key={room.roomid}
                           className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm group"
