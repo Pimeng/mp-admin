@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { RoomIdCombobox } from '@/components/RoomIdCombobox';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -110,18 +111,6 @@ export function AdminApiPanel() {
       setIsRoomOptionsLoading(false);
     }
   };
-
-  const filteredRooms = rooms.filter((room) => {
-    if (!roomId.trim()) {
-      return true;
-    }
-
-    const keyword = roomId.trim().toLowerCase();
-    return (
-      room.roomid.toLowerCase().includes(keyword) ||
-      (room.host?.name || '').toLowerCase().includes(keyword)
-    );
-  });
 
   const handleSearchUser = async () => {
     if (!userId) {
@@ -542,53 +531,18 @@ export function AdminApiPanel() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>房间 ID</Label>
-                  <Input
-                    placeholder="输入房间 ID"
-                    list="admin-room-id-options"
+                  <RoomIdCombobox
                     value={roomId}
-                    onChange={(e) => setRoomId(e.target.value)}
-                    onFocus={() => {
-                      void ensureAdminRoomsLoaded();
-                    }}
+                    rooms={rooms}
+                    loading={isRoomOptionsLoading}
+                    placeholder="输入或选择房间 ID"
+                    emptyText="没有匹配的房间，可继续直接输入"
+                    onValueChange={setRoomId}
+                    onOpen={ensureAdminRoomsLoaded}
                   />
-                  <datalist id="admin-room-id-options">
-                    {filteredRooms.map((room) => (
-                      <option key={room.roomid} value={room.roomid} />
-                    ))}
-                  </datalist>
                   <p className="text-xs text-muted-foreground">
-                    {isRoomOptionsLoading ? '正在加载房间列表...' : '支持直接输入，也可以从浏览器补全结果里选择房间 ID'}
+                    {isRoomOptionsLoading ? '正在加载房间列表...' : '支持直接输入，也可以搜索房主名或房间 ID 后点选'}
                   </p>
-                  {false && (
-                    <Select
-                      value={rooms.some((room) => room.roomid === roomId) ? roomId : undefined}
-                      onValueChange={setRoomId}
-                      onOpenChange={(open) => {
-                        if (open) {
-                          void ensureAdminRoomsLoaded();
-                        }
-                      }}
-                    >
-                    <SelectTrigger className="w-full">
-                      <SelectValue
-                        placeholder={isRoomOptionsLoading ? '正在获取房间列表...' : '从已获取的房间中快速选择'}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rooms.length > 0 ? (
-                        rooms.map((room) => (
-                          <SelectItem key={room.roomid} value={room.roomid}>
-                            {room.roomid}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="__empty" disabled>
-                          {isRoomOptionsLoading ? '正在加载房间列表...' : '暂无可选房间，展开时会自动尝试获取'}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                    </Select>
-                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>消息内容</Label>
