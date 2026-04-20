@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,8 +32,17 @@ import { toast } from 'sonner';
 import { getStateBadgeConfig } from '@/lib/utils';
 import type { Room, UserInfo } from '@/types/api';
 
+const adminTabs = [
+  { value: 'rooms', label: '\u623f\u95f4\u7ba1\u7406' },
+  { value: 'users', label: '\u7528\u6237\u7ba1\u7406' },
+  { value: 'messages', label: '\u6d88\u606f\u5e7f\u64ad' },
+  { value: 'settings', label: '\u529f\u80fd\u5f00\u5173' },
+  { value: 'contest', label: '\u6bd4\u8d5b' },
+];
+
 export function AdminApiPanel() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState('');
@@ -42,12 +51,13 @@ export function AdminApiPanel() {
   const [message, setMessage] = useState('');
   const [replayEnabled, setReplayEnabled] = useState(false);
   const [roomCreationEnabled, setRoomCreationEnabled] = useState(true);
-  const [activeTab, setActiveTab] = useState('rooms');
 
   // 比赛相关状态
   const [contestEnabled, setContestEnabled] = useState(false);
   const [whitelist, setWhitelist] = useState('');
   const [force, setForce] = useState(false);
+  const currentTab = location.pathname.split('/').filter(Boolean)[1] || 'rooms';
+  const activeTab = adminTabs.some((tab) => tab.value === currentTab) ? currentTab : 'rooms';
 
   const fetchAdminRooms = async () => {
     setLoading(true);
@@ -280,7 +290,11 @@ export function AdminApiPanel() {
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full animate-fade-in">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => navigate(`/admin/${value}`)}
+      className="w-full animate-fade-in"
+    >
       <TabsList className="grid grid-cols-5 mb-4">
         <TabsTrigger value="rooms">房间管理</TabsTrigger>
         <TabsTrigger value="users">用户管理</TabsTrigger>
