@@ -51,6 +51,7 @@ export function AdminApiPanel() {
   const [message, setMessage] = useState('');
   const [replayEnabled, setReplayEnabled] = useState(false);
   const [roomCreationEnabled, setRoomCreationEnabled] = useState(true);
+  const [isRoomOptionsLoading, setIsRoomOptionsLoading] = useState(false);
 
   // 比赛相关状态
   const [contestEnabled, setContestEnabled] = useState(false);
@@ -58,6 +59,12 @@ export function AdminApiPanel() {
   const [force, setForce] = useState(false);
   const currentTab = location.pathname.split('/').filter(Boolean)[1] || 'rooms';
   const activeTab = adminTabs.some((tab) => tab.value === currentTab) ? currentTab : 'rooms';
+
+  useEffect(() => {
+    if (activeTab === 'messages') {
+      void ensureAdminRoomsLoaded();
+    }
+  }, [activeTab]);
 
   const fetchAdminRooms = async () => {
     setLoading(true);
@@ -82,6 +89,39 @@ export function AdminApiPanel() {
       setLoading(false);
     }
   };
+
+  const ensureAdminRoomsLoaded = async () => {
+    if (rooms.length > 0 || isRoomOptionsLoading) {
+      return;
+    }
+
+    setIsRoomOptionsLoading(true);
+    try {
+      const data = await apiService.getAdminRooms();
+      if (data.ok) {
+        setRooms(data.rooms || []);
+      } else {
+        const errorMsg = (data as any).error || '未知错误';
+        toast.error('获取房间列表失败: ' + errorMsg);
+      }
+    } catch {
+      toast.error('获取房间列表失败');
+    } finally {
+      setIsRoomOptionsLoading(false);
+    }
+  };
+
+  const filteredRooms = rooms.filter((room) => {
+    if (!roomId.trim()) {
+      return true;
+    }
+
+    const keyword = roomId.trim().toLowerCase();
+    return (
+      room.roomid.toLowerCase().includes(keyword) ||
+      (room.host?.name || '').toLowerCase().includes(keyword)
+    );
+  });
 
   const handleSearchUser = async () => {
     if (!userId) {
@@ -504,9 +544,51 @@ export function AdminApiPanel() {
                   <Label>房间 ID</Label>
                   <Input
                     placeholder="输入房间 ID"
+                    list="admin-room-id-options"
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value)}
+                    onFocus={() => {
+                      void ensureAdminRoomsLoaded();
+                    }}
                   />
+                  <datalist id="admin-room-id-options">
+                    {filteredRooms.map((room) => (
+                      <option key={room.roomid} value={room.roomid} />
+                    ))}
+                  </datalist>
+                  <p className="text-xs text-muted-foreground">
+                    {isRoomOptionsLoading ? '正在加载房间列表...' : '支持直接输入，也可以从浏览器补全结果里选择房间 ID'}
+                  </p>
+                  {false && (
+                    <Select
+                      value={rooms.some((room) => room.roomid === roomId) ? roomId : undefined}
+                      onValueChange={setRoomId}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          void ensureAdminRoomsLoaded();
+                        }
+                      }}
+                    >
+                    <SelectTrigger className="w-full">
+                      <SelectValue
+                        placeholder={isRoomOptionsLoading ? '正在获取房间列表...' : '从已获取的房间中快速选择'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rooms.length > 0 ? (
+                        rooms.map((room) => (
+                          <SelectItem key={room.roomid} value={room.roomid}>
+                            {room.roomid}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="__empty" disabled>
+                          {isRoomOptionsLoading ? '正在加载房间列表...' : '暂无可选房间，展开时会自动尝试获取'}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>消息内容</Label>
