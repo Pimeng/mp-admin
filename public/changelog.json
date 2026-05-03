@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-05-03T22:57:31.066Z",
-  "totalCommits": 77,
+  "generatedAt": "2026-05-03T23:03:40.338Z",
+  "totalCommits": 79,
   "commits": [
+    {
+      "hash": "906d633",
+      "date": "2026-05-04 07:03:39 +0800",
+      "message": "feat: 添加重命名和删除配置功能，优化动画效果",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加重命名和删除配置功能，优化动画效果",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "635b2f9",
+      "date": "2026-05-04 06:57:30 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "e8116b2",
       "date": "2026-05-04 06:57:30 +0800",
