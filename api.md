@@ -2,6 +2,13 @@
 
 本项目内置一个轻量 HTTP 服务，提供房间列表与管理员 API。管理员 API 需要 `ADMIN_TOKEN` 鉴权。
 
+> [!NOTE]
+> 关于谱面分享站：
+> 
+> API/前端地址：http://183.66.27.19:40004
+> 
+> 如需上传Token，请添加Evidence https://rymc.ltd/e 询问相关事宜
+
 ## 启用与鉴权
 
 ### 启用 HTTP 服务
@@ -20,7 +27,7 @@
 管理员 API 默认禁用；只有配置了 token 才可访问。
 
 - 环境变量：`ADMIN_TOKEN=your_token`
-- 配置文件：`admin_token: "your_token"`
+- 配置文件：`ADMIN_TOKEN: "your_token"`
 
 请求携带 token 的方式（三选一）：
 
@@ -102,7 +109,7 @@ Body：
 - 默认路径：`admin_data.json`（位于 `PHIRA_MP_HOME` 或工作目录）
 - 覆盖路径：
   - 环境变量：`ADMIN_DATA_PATH=/path/to/admin_data.json`
-  - 配置文件：`admin_data_path: "/path/to/admin_data.json"`
+  - 配置文件：`ADMIN_DATA_PATH: "/path/to/admin_data.json"`
 
 ### 比赛房间（一次性房间）
 
@@ -263,6 +270,17 @@ Body：
 - `sessionToken` 无效/过期：`401 { "ok": false, "error": "unauthorized" }`
 - 回放不存在：`404 { "ok": false, "error": "not-found" }`
 
+#### 回放文件格式（.phirarec）
+
+文件头固定 14 字节（小端）：
+
+- 2 字节：文件标识（UInt16LE，固定为 `0x504D`）
+- 4 字节：谱面 ID（UInt32LE）
+- 4 字节：用户 ID（UInt32LE）
+- 4 字节：成绩 ID（UInt32LE，若无成绩则为 0）
+
+后续为原生数据流（服务端收到的 Touches/Judges 等命令会按现有协议编码写入）。
+
 #### 4) 上传回放到分享站（使用用户TOKEN鉴权）
 
 `POST /replay/upload`
@@ -313,14 +331,10 @@ curl -X POST -H "Content-Type: application/json" \
   - 使用 `readReplayHeader` 验证文件头和用户权限
   - 验证文件实际存在且是有效文件
 - 上传流程：
-  1. 调用分享站 `POST /upload` 接口上传文件
+  1. 调用分享站 `POST /upload_direct` 接口上传文件
   2. 调用 `POST /show/{score_id}` 设置为显示（用户手动上传默认显示）
 - **手动上传的 `show` 属性默认为 `true`（显示）**
 - 原服务器上的文件不会被删除或修改
-
-调用的Phira Replay API：
-- `POST /upload` - 上传并解析回放文件
-- `POST /show/{score_id}` - 设置回放为显示状态
 
 常见错误：
 
@@ -334,6 +348,8 @@ curl -X POST -H "Content-Type: application/json" \
 #### 5) 自动上传配置接口（使用用户TOKEN鉴权）
 
 允许用户配置游戏结束后是否自动将回放上传到分享站。
+
+**注意**：需要服务器配置了 `SHARE_STATION` 才能正常工作。详见 [分享站配置](#分享站配置)。
 
 ##### 查询自动上传配置
 
@@ -406,7 +422,7 @@ curl -X POST -H "Content-Type: application/json" \
 - 自动上传会在游戏结束后**延迟30秒**执行
 - 自动上传的文件 `show` 属性默认为 `false`（不显示），与手动上传不同
 - 如果用户禁用了自动上传，所有待处理的自动上传任务会被取消
-- 需要服务器配置了 `share_station` 才能正常工作
+- 需要服务器配置了 `SHARE_STATION` 才能正常工作
 
 ##### 调用的Phira Replay API
 
@@ -415,7 +431,7 @@ curl -X POST -H "Content-Type: application/json" \
 1. **上传回放文件（内部接口）**
    - 端点：`POST /upload_direct`
    - 功能：供其他服务器自动上传 `.phirarec` 文件，自动从外部API拉取对应谱面文件和曲绘
-   - 认证：使用服务器配置的 `share_station.token` (Bearer Token)
+   - 认证：使用服务器配置的 `SHARE_STATION.TOKEN` (Bearer Token)
    - 特点：通过此接口上传的记录 `is_visible` 默认为 0，不会在主页列表显示
 
 2. **设置回放可见性**
@@ -433,16 +449,21 @@ curl -X POST -H "Content-Type: application/json" \
 - 缺少参数：`400 { "ok": false, "error": "bad-request" }`
 - TOKEN无效：`401 { "ok": false, "error": "unauthorized" }`
 
-#### 回放文件格式（.phirarec）
+### 分享站配置
 
-文件头固定 14 字节（小端）：
+要启用分享站功能，需要在 `server_config.yml` 中配置：
 
-- 2 字节：文件标识（UInt16LE，固定为 `0x504D`）
-- 4 字节：谱面 ID（UInt32LE）
-- 4 字节：用户 ID（UInt32LE）
-- 4 字节：成绩 ID（UInt32LE，若无成绩则为 0）
+```yaml
+SHARE_STATION:
+  # 分享站地址
+  URL: "http://183.66.27.19:40004"
+  # 服务器认证 token（用于自动上传等内部接口）
+  TOKEN: "your_share_station_token_here"
+```
 
-后续为原生数据流（服务端收到的 Touches/Judges 等命令会按现有协议编码写入）。
+或使用环境变量：
+- `SHARE_STATION_URL`
+- `SHARE_STATION_TOKEN`
 
 ## 管理员接口
 
@@ -457,6 +478,7 @@ curl -X POST -H "Content-Type: application/json" \
 ```json
 {
   "ok": true,
+  "total_rooms": 2,
   "rooms": [
     {
       "roomid": "room1",
@@ -479,7 +501,11 @@ curl -X POST -H "Content-Type: application/json" \
           "language": "zh-CN"
         }
       ],
-      "monitors": []
+      "monitors": [],
+      "recent_logs": [
+        { "message": "Alice 创建了房间", "timestamp": 1730000000000 },
+        { "message": "管理员通知：请注意游戏规则", "timestamp": 1730000005000 }
+      ]
     },
     {
       "roomid": "room2",
@@ -519,7 +545,13 @@ curl -X POST -H "Content-Type: application/json" \
           "aborted": false
         }
       ],
-      "monitors": []
+      "monitors": [],
+      "recent_logs": [
+        { "message": "Bob 创建了房间", "timestamp": 1730000010000 },
+        { "message": "Bob 选择了谱面 Chart-2", "timestamp": 1730000015000 },
+        { "message": "游戏开始，参与玩家：100、200", "timestamp": 1730000020000 },
+        { "message": "Alice: 大家好", "timestamp": 1730000025000 }
+      ]
     }
   ]
 }
@@ -527,6 +559,12 @@ curl -X POST -H "Content-Type: application/json" \
 
 说明：
 
+- `total_rooms`：当前房间总数
+- `recent_logs`：房间最近 50 条日志/公屏消息，按时间顺序排列，包含：
+  - 服务器操作日志（玩家加入/离开、选谱、开始游戏等）
+  - 玩家聊天消息
+  - 管理员通过 `/admin/broadcast` 或 `/admin/rooms/:roomId/chat` 发送的公屏消息
+  - 游戏结算摘要
 - 房间进行中（`state.type === "playing"`）时，每个玩家会包含以下额外字段：
   - `finished`：玩家是否已完成游玩（上传成绩或中止）
   - `aborted`：玩家是否中止了游玩

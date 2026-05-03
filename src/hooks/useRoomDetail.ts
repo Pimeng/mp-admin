@@ -43,6 +43,13 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
         const foundRoom = data.rooms.find(r => r.roomid === roomId);
         if (foundRoom) {
           setRoom(foundRoom);
+          if (foundRoom.recent_logs) {
+            setChatMessages(foundRoom.recent_logs.map(log => ({
+              user: 0,
+              content: log.message,
+              timestamp: log.timestamp,
+            })));
+          }
           return foundRoom;
         } else {
           toast.error('房间不存在');

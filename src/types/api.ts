@@ -24,6 +24,7 @@ export interface Room {
   chart: { id: number; name: string };
   users: RoomUser[];
   monitors: any[];
+  recent_logs?: { message: string; timestamp: number }[];
 }
 
 export interface RoomUser {
