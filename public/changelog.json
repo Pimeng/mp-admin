@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-05-03T23:03:40.338Z",
-  "totalCommits": 79,
+  "generatedAt": "2026-05-03T23:11:19.183Z",
+  "totalCommits": 81,
   "commits": [
+    {
+      "hash": "9f17698",
+      "date": "2026-05-04 07:11:18 +0800",
+      "message": "fix: 修正Edgeone路由规则",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修正Edgeone路由规则",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "8f7dc82",
+      "date": "2026-05-04 07:03:39 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "906d633",
       "date": "2026-05-04 07:03:39 +0800",
