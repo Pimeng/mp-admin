@@ -1,11 +1,12 @@
-import type { 
-  ApiConfig, 
-  Room, 
-  PublicRoom, 
-  UserInfo, 
-  ReplayAuthResponse, 
-  OtpRequestResponse, 
+import type {
+  ApiConfig,
+  Room,
+  PublicRoom,
+  UserInfo,
+  ReplayAuthResponse,
+  OtpRequestResponse,
   OtpVerifyResponse,
+  OtpMode,
   CurrentUserInfo,
   ReplayUploadResponse,
   AutoUploadConfigResponse,
@@ -119,18 +120,26 @@ class ApiService {
 
   // ========== OTP 认证 ==========
 
-  // 请求OTP (不需要鉴权，当未配置永久TOKEN时使用)
-  async requestOtp(): Promise<OtpRequestResponse> {
+  // 请求 OTP / CLI 提权(不需要鉴权,当未配置永久 TOKEN 时使用)
+  async requestOtp(mode: OtpMode = 'otp'): Promise<OtpRequestResponse> {
     return this.request('/admin/otp/request', {
       method: 'POST',
+      body: JSON.stringify({ mode }),
     }, true);
   }
 
-  // 验证OTP (不需要鉴权)
-  async verifyOtp(ssid: string, otp: string): Promise<OtpVerifyResponse> {
+  // 验证 OTP / 轮询 CLI 批准结果(不需要鉴权)
+  async verifyOtp(
+    ssid: string,
+    otpOrMode: string | { mode: OtpMode },
+  ): Promise<OtpVerifyResponse> {
+    const body =
+      typeof otpOrMode === 'string'
+        ? { ssid, otp: otpOrMode }
+        : { ssid, mode: otpOrMode.mode };
     return this.request('/admin/otp/verify', {
       method: 'POST',
-      body: JSON.stringify({ ssid, otp }),
+      body: JSON.stringify(body),
     }, true);
   }
 

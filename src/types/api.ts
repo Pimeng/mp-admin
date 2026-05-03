@@ -81,6 +81,7 @@ export interface OtpRequestResponse {
   ok: boolean;
   ssid: string;
   expiresIn: number;
+  mode?: OtpMode;
   error?: string;
 }
 
@@ -89,8 +90,13 @@ export interface OtpVerifyResponse {
   token: string;
   expiresAt: number;
   expiresIn: number;
+  mode?: OtpMode;
+  status?: OtpCliStatus;
   error?: string;
 }
+
+export type OtpMode = 'otp' | 'cli';
+export type OtpCliStatus = 'pending' | 'denied';
 
 export interface CurrentUserInfo {
   id: number;

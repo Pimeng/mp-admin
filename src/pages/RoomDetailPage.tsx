@@ -32,6 +32,7 @@ import { ConnectionStatus, WebSocketStatus } from '@/components/ConnectionStatus
 import { disbandRoomDialog, maxUsersDialog } from '@/lib/dialogs';
 import { formatRks, formatTime } from '@/lib/formatters';
 import { getGameStateText } from '@/lib/ui-helpers';
+import { classifyLog } from '@/lib/log-classifier';
 import { UserDetailDialog } from '@/components/UserDetailDialog';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
 import { GameResultsDialog } from '@/components/GameResultsDialog';
@@ -523,7 +524,7 @@ export function RoomDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div 
+                <div
                   ref={chatScrollRef}
                   className="h-[300px] overflow-y-auto space-y-2 pr-2"
                 >
@@ -532,28 +533,29 @@ export function RoomDetailPage() {
                       暂无消息
                     </div>
                   ) : (
-                    chatMessages.map((msg, index) => (
-                      <div 
-                        key={index} 
-                        className={`p-2 rounded-lg ${
-                          msg.user === 0 
-                            ? 'bg-blue-50 dark:bg-blue-950' 
-                            : 'bg-muted'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`font-medium text-sm ${
-                            msg.user === 0 ? 'text-blue-600' : 'text-foreground'
-                          }`}>
-                            {msg.user === 0 ? '系统' : `玩家 ${msg.user}`}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(msg.timestamp)}
-                          </span>
+                    chatMessages.map((msg, index) => {
+                      const cls = classifyLog(msg.message);
+                      const Icon = cls.icon;
+                      return (
+                        <div
+                          key={index}
+                          className={`px-3 py-2 rounded-md ${cls.containerClass}`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Icon className={`h-3.5 w-3.5 shrink-0 ${cls.iconClass}`} />
+                            <span className={`font-medium text-sm ${cls.speakerClass}`}>
+                              {cls.type === 'chat' ? cls.speaker : cls.label}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {formatTime(msg.timestamp)}
+                            </span>
+                          </div>
+                          <div className="text-sm break-words leading-relaxed">
+                            {cls.body}
+                          </div>
                         </div>
-                        <div className="text-sm break-words">{msg.content}</div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </CardContent>

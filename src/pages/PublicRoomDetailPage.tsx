@@ -24,6 +24,8 @@ import { StateBadge } from '@/components/StateBadge';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { UserDetailDialog } from '@/components/UserDetailDialog';
 import { ChartDetailDialog } from '@/components/ChartDetailDialog';
+import { classifyLog } from '@/lib/log-classifier';
+import { formatTime } from '@/lib/formatters';
 
 export function PublicRoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -331,12 +333,28 @@ export function PublicRoomDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[200px] overflow-y-auto space-y-1 text-xs">
-                    {wsLogs.map((log, index) => (
-                      <div key={index} className="text-muted-foreground font-mono">
-                        {log}
-                      </div>
-                    ))}
+                  <div className="h-[260px] overflow-y-auto space-y-1.5">
+                    {wsLogs.map((log, index) => {
+                      const cls = classifyLog(log.message);
+                      const Icon = cls.icon;
+                      return (
+                        <div
+                          key={index}
+                          className={`px-2.5 py-1.5 rounded-md text-xs ${cls.containerClass}`}
+                        >
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <Icon className={`h-3 w-3 shrink-0 ${cls.iconClass}`} />
+                            <span className={`font-medium ${cls.speakerClass}`}>
+                              {cls.type === 'chat' ? cls.speaker : cls.label}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground ml-auto">
+                              {formatTime(log.timestamp)}
+                            </span>
+                          </div>
+                          <div className="break-words leading-snug">{cls.body}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

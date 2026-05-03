@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Lock,
   Unlock,
@@ -20,11 +21,17 @@ import {
   Shield,
   Loader2,
   ArrowLeft,
-  Save
+  Save,
+  KeyRound,
+  Terminal,
+  Hourglass,
+  XCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
 import { useOtpAuth } from '@/hooks/useOtpAuth';
+import type { OtpMode } from '@/types/api';
 
 const TOKEN_TYPE_PERMANENT = 'permanent';
 const TOKEN_TYPE_TEMP = 'temp';
@@ -307,10 +314,42 @@ export function AdminTokenDialog({ open, onOpenChange, onTokenSaved, onTokenSkip
       {/* 验证码区域 - 选择临时TOKEN时直接显示 */}
       {tokenType === TOKEN_TYPE_TEMP && !adminToken && (
         <div className="border rounded-lg p-3 space-y-3">
+          {/* OTP / CLI 模式切换 */}
+          <Tabs
+            value={otpAuth.mode}
+            onValueChange={(v) => otpAuth.setMode(v as OtpMode)}
+          >
+            <TabsList className="relative w-full grid grid-cols-2">
+              {/* 滑动的白色高亮块,跟随选中的 tab 左右滑动 */}
+              <div
+                aria-hidden
+                className={`pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-md bg-white shadow-md transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                  otpAuth.mode === 'cli' ? 'translate-x-full' : 'translate-x-0'
+                }`}
+              />
+              <TabsTrigger
+                value="otp"
+                className="group relative z-10 flex items-center gap-1.5 border-transparent bg-transparent shadow-none transition-colors duration-300 data-[state=active]:border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-black data-[state=active]:font-semibold dark:data-[state=active]:bg-transparent dark:data-[state=active]:border-transparent dark:data-[state=active]:text-black"
+              >
+                <KeyRound className="h-3.5 w-3.5 transition-colors duration-300 group-data-[state=active]:text-blue-600" />
+                验证码
+              </TabsTrigger>
+              <TabsTrigger
+                value="cli"
+                className="group relative z-10 flex items-center gap-1.5 border-transparent bg-transparent shadow-none transition-colors duration-300 data-[state=active]:border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-black data-[state=active]:font-semibold dark:data-[state=active]:bg-transparent dark:data-[state=active]:border-transparent dark:data-[state=active]:text-black"
+              >
+                <Terminal className="h-3.5 w-3.5 transition-colors duration-300 group-data-[state=active]:text-blue-600" />
+                在终端中批准
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           {otpAuth.step === 'request' && (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                点击下方按钮请求验证码，验证码将显示在服务器终端
+                {otpAuth.mode === 'cli'
+                  ? '向服务器终端发起一次提权申请,由管理员手动 approve 后下发临时 TOKEN'
+                  : '点击下方按钮请求验证码,验证码将显示在服务器终端'}
               </p>
               <Button
                 onClick={otpAuth.requestOtp}
@@ -320,22 +359,29 @@ export function AdminTokenDialog({ open, onOpenChange, onTokenSaved, onTokenSkip
               >
                 {otpAuth.loading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : otpAuth.mode === 'cli' ? (
+                  <Terminal className="h-4 w-4 mr-2" />
                 ) : (
                   <Lock className="h-4 w-4 mr-2" />
                 )}
-                请求验证码
+                {otpAuth.mode === 'cli' ? '发起提权申请' : '请求验证码'}
               </Button>
+              {otpAuth.errorMessage && (
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  {otpAuth.errorMessage}
+                </p>
+              )}
             </div>
           )}
 
-          {otpAuth.step === 'verify' && (
+          {otpAuth.step === 'verify' && otpAuth.mode === 'otp' && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 <span>会话 ID: {otpAuth.ssid.slice(0, 8)}...</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                请查看服务器终端获取 8 位验证码
+                请查看服务器终端获取 8 位验证码(1 分钟内有效)
               </p>
               <Input
                 placeholder="输入 8 位验证码"
@@ -369,12 +415,65 @@ export function AdminTokenDialog({ open, onOpenChange, onTokenSaved, onTokenSkip
             </div>
           )}
 
+          {otpAuth.step === 'pending' && otpAuth.mode === 'cli' && (
+            <div className="space-y-3">
+              <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                <Hourglass className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                <AlertDescription className="text-xs text-blue-700 dark:text-blue-300">
+                  已通知服务器终端,等待管理员执行 <code className="px-1 rounded bg-blue-100 dark:bg-blue-900 font-mono">approve {otpAuth.ssid.slice(0, 8)}</code> 进行批准...
+                </AlertDescription>
+              </Alert>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  正在轮询批准结果
+                </span>
+                <span>会话 ID: {otpAuth.ssid.slice(0, 8)}...</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={otpAuth.cancelCliPolling}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                取消等待
+              </Button>
+            </div>
+          )}
+
+          {otpAuth.step === 'denied' && otpAuth.mode === 'cli' && (
+            <div className="space-y-3">
+              <Alert className="bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
+                <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-xs text-red-700 dark:text-red-300">
+                  管理员已拒绝此次提权申请
+                </AlertDescription>
+              </Alert>
+              <Button
+                onClick={otpAuth.requestOtp}
+                size="sm"
+                className="w-full"
+                disabled={otpAuth.loading}
+              >
+                {otpAuth.loading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                重新发起申请
+              </Button>
+            </div>
+          )}
+
           {otpAuth.step === 'success' && (
             <div className="space-y-3">
               <div className="p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
                 <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                   <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">认证成功</span>
+                  <span className="text-sm font-medium">
+                    {otpAuth.mode === 'cli' ? '管理员已批准' : '认证成功'}
+                  </span>
                 </div>
                 <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                   有效期至: {new Date(otpAuth.expiresAt).toLocaleString()}

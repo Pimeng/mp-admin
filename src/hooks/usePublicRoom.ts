@@ -17,6 +17,11 @@ interface ExtendedPublicRoom extends PublicRoom {
   players_with_ready?: Player[];
 }
 
+export interface PublicRoomLog {
+  message: string;
+  timestamp: number;
+}
+
 interface UsePublicRoomOptions {
   enableWebSocket?: boolean;
   autoRefreshInterval?: number;
@@ -29,7 +34,7 @@ export function usePublicRoom(roomId: string | undefined, options: UsePublicRoom
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [wsConnected, setWsConnected] = useState(false);
-  const [wsLogs, setWsLogs] = useState<string[]>([]);
+  const [wsLogs, setWsLogs] = useState<PublicRoomLog[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -141,7 +146,10 @@ export function usePublicRoom(roomId: string | undefined, options: UsePublicRoom
 
           case 'room_log':
             setWsLogs(prev => {
-              const newLogs = [`[${new Date(message.data.timestamp).toLocaleTimeString()}] ${message.data.message}`, ...prev];
+              const newLogs: PublicRoomLog[] = [
+                { message: message.data.message, timestamp: message.data.timestamp },
+                ...prev,
+              ];
               return newLogs.slice(0, 50);
             });
             break;

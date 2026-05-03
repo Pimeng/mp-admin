@@ -4,13 +4,8 @@ import { webSocketService } from '@/services/websocket';
 import { toast } from 'sonner';
 import type { Room } from '@/types/api';
 
-interface ChatMessage {
-  user: number;
-  content: string;
-  timestamp: number;
-}
-
-interface RoomLogMessage {
+// 房间日志条目(对齐 api.md / websocket.md 中 recent_logs / room_log 的 schema)
+export interface RoomLogEntry {
   message: string;
   timestamp: number;
 }
@@ -27,7 +22,7 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
   const [isLoading, setIsLoading] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [wsSubscribed, setWsSubscribed] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<RoomLogEntry[]>([]);
 
   const previousStateRef = useRef<string>('');
   const playerRecordsRef = useRef<Map<number, { userId: number; userName: string; recordId?: number }>>(new Map());
@@ -45,8 +40,7 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
           setRoom(foundRoom);
           if (foundRoom.recent_logs) {
             setChatMessages(foundRoom.recent_logs.map(log => ({
-              user: 0,
-              content: log.message,
+              message: log.message,
               timestamp: log.timestamp,
             })));
           }
@@ -120,16 +114,10 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
         }
       }
 
-      if (message.type === 'room_message') {
-        const roomMsg = message as unknown as { data: ChatMessage };
-        setChatMessages(prev => [...prev, roomMsg.data]);
-      }
-
       if (message.type === 'room_log') {
-        const logMsg = message as unknown as { data: RoomLogMessage };
+        const logMsg = message as unknown as { data: RoomLogEntry };
         setChatMessages(prev => [...prev, {
-          user: 0,
-          content: logMsg.data.message,
+          message: logMsg.data.message,
           timestamp: logMsg.data.timestamp,
         }]);
       }

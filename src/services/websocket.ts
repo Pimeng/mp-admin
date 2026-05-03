@@ -35,11 +35,10 @@ export interface RoomUpdateMessage {
   };
 }
 
-export interface RoomMessage {
-  type: 'room_message';
+export interface RoomLogEvent {
+  type: 'room_log';
   data: {
-    user: number;
-    content: string;
+    message: string;
     timestamp: number;
   };
 }
