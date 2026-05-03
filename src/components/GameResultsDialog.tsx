@@ -6,9 +6,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Trophy, Target, Sparkles, X } from 'lucide-react';
+import { Trophy, Target, Sparkles } from 'lucide-react';
 import { phiraApiService } from '@/services/phiraApi';
-import { Button } from '@/components/ui/button';
 
 interface PlayerResult {
   userId: number;
@@ -231,14 +230,6 @@ export function GameResultsDialog({ open, onOpenChange, playerRecordIds }: GameR
               <span className="text-sm text-muted-foreground">
                 {countdown}秒后自动关闭
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onOpenChange(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </DialogHeader>

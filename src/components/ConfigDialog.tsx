@@ -26,7 +26,6 @@ import {
   Loader2,
   AlertCircle,
   ArrowRight,
-  X,
   Plus,
   Trash2,
   Edit2,
@@ -396,9 +395,6 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
               <Settings className="h-5 w-5" />
               API 配置
             </DialogTitle>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleClose}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <DialogDescription>
             配置 API 服务器地址

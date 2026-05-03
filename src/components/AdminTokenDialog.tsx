@@ -20,8 +20,7 @@ import {
   Shield,
   Loader2,
   ArrowLeft,
-  Save,
-  X
+  Save
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
@@ -426,9 +425,6 @@ export function AdminTokenDialog({ open, onOpenChange, onTokenSaved, onTokenSkip
               <Shield className="h-5 w-5" />
               管理员 TOKEN 配置
             </DialogTitle>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleClose}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <DialogDescription>
             {currentStep === 'type' && '选择 TOKEN 类型'}
