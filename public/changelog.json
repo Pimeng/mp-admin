@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-05-03T22:12:35.854Z",
-  "totalCommits": 75,
+  "generatedAt": "2026-05-03T22:57:31.066Z",
+  "totalCommits": 77,
   "commits": [
+    {
+      "hash": "e8116b2",
+      "date": "2026-05-04 06:57:30 +0800",
+      "message": "feat: update navigation and error handling in room detail pages, add mode selection and API configuration page",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "update navigation and error handling in room detail pages, add mode selection and API configuration page",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "c7535c6",
+      "date": "2026-05-04 06:12:35 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "8176057",
       "date": "2026-05-04 06:12:35 +0800",
