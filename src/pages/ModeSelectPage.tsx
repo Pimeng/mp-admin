@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Edit2,
   Gamepad2,
   Globe,
   History,
@@ -38,8 +39,10 @@ import {
   Sparkles,
   Terminal,
   TestTube,
+  Trash2,
   Unlock,
   User,
+  X,
   XCircle,
 } from 'lucide-react';
 import { apiService } from '@/services/api';
@@ -108,6 +111,10 @@ export function ModeSelectPage() {
   const [isCheckingUrl, setIsCheckingUrl] = useState(false);
   const [isUrlValid, setIsUrlValid] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renamingValue, setRenamingValue] = useState('');
+
+  const selectedConfig = savedConfigs.find(c => c.id === selectedConfigId);
 
   // ===== 玩家模式登录状态 =====
   const [email, setEmail] = useState('');
@@ -219,6 +226,42 @@ export function ModeSelectPage() {
     localStorage.setItem('api_config_id', id);
     apiService.setConfig({ baseUrl: config.baseUrl, adminToken: '' });
     toast.success(`已切换到: ${config.name}`);
+  };
+
+  const handleStartRename = () => {
+    if (!selectedConfig) return;
+    setRenamingValue(selectedConfig.name);
+    setIsRenaming(true);
+  };
+
+  const handleConfirmRename = () => {
+    const trimmed = renamingValue.trim();
+    if (!selectedConfigId || !trimmed) {
+      setIsRenaming(false);
+      return;
+    }
+    const updated = savedConfigs.map(c =>
+      c.id === selectedConfigId ? { ...c, name: trimmed } : c
+    );
+    setSavedConfigs(updated);
+    saveConfigsToStorage(updated);
+    setIsRenaming(false);
+    toast.success('配置名称已更新');
+  };
+
+  const handleDeleteConfig = () => {
+    if (!selectedConfigId) return;
+    const target = savedConfigs.find(c => c.id === selectedConfigId);
+    if (!target) return;
+    const updated = savedConfigs.filter(c => c.id !== selectedConfigId);
+    setSavedConfigs(updated);
+    saveConfigsToStorage(updated);
+    setSelectedConfigId('');
+    setBaseUrl('');
+    localStorage.removeItem('api_config_id');
+    localStorage.removeItem('api_base_url');
+    apiService.setConfig({ baseUrl: '', adminToken: '' });
+    toast.success(`已删除配置: ${target.name}`);
   };
 
   const handleTestConnection = async () => {
@@ -393,21 +436,76 @@ export function ModeSelectPage() {
                     <History className="h-3 w-3" />
                     选择已保存的配置
                   </Label>
-                  <Select value={selectedConfigId} onValueChange={handleSelectSavedConfig}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择已保存的配置..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {savedConfigs.map(config => (
-                        <SelectItem key={config.id} value={config.id}>
-                          <div className="flex items-center gap-3">
-                            <span className="truncate font-medium">{config.name}</span>
-                            <span className="text-xs text-muted-foreground">{config.baseUrl}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isRenaming ? (
+                    <div className="flex gap-2">
+                      <Input
+                        value={renamingValue}
+                        onChange={e => setRenamingValue(e.target.value)}
+                        placeholder="输入新的配置名称"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleConfirmRename();
+                          else if (e.key === 'Escape') setIsRenaming(false);
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={handleConfirmRename}
+                        title="确认"
+                        className="shrink-0"
+                      >
+                        <Check className="h-4 w-4 text-green-500" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => setIsRenaming(false)}
+                        title="取消"
+                        className="shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Select value={selectedConfigId} onValueChange={handleSelectSavedConfig}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="选择已保存的配置..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedConfigs.map(config => (
+                            <SelectItem key={config.id} value={config.id}>
+                              <div className="flex items-center gap-3">
+                                <span className="truncate font-medium">{config.name}</span>
+                                <span className="text-xs text-muted-foreground">{config.baseUrl}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={handleStartRename}
+                        disabled={!selectedConfig}
+                        title="重命名"
+                        className="shrink-0"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={handleDeleteConfig}
+                        disabled={!selectedConfig}
+                        title="删除当前配置"
+                        className="shrink-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -805,7 +903,7 @@ function OtpFlow({ otpAuth, onSuccess }: OtpFlowProps) {
         <TabsList className="relative grid w-full grid-cols-2">
           <div
             aria-hidden
-            className={`pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-md bg-white shadow-md transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+            className={`pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-md bg-white shadow-md transition-transform duration-500 ease-spring ${
               otpAuth.mode === 'cli' ? 'translate-x-full' : 'translate-x-0'
             }`}
           />

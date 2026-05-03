@@ -323,7 +323,7 @@ export function AdminTokenDialog({ open, onOpenChange, onTokenSaved, onTokenSkip
               {/* 滑动的白色高亮块,跟随选中的 tab 左右滑动 */}
               <div
                 aria-hidden
-                className={`pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-md bg-white shadow-md transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                className={`pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-md bg-white shadow-md transition-transform duration-500 ease-spring ${
                   otpAuth.mode === 'cli' ? 'translate-x-full' : 'translate-x-0'
                 }`}
               />
