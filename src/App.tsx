@@ -78,7 +78,6 @@ function MainLayout() {
       applyConfig().then((success) => {
         if (success) {
           setIsConfigured(true);
-          setConfigKey((prev) => prev + 1);
         }
       });
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { toast } from 'sonner';
@@ -17,22 +17,16 @@ export interface ConfigValidationResult {
 
 export function useUrlConfig() {
   const [searchParams] = useSearchParams();
-  const [config, setConfig] = useState<UrlConfig>({ apiUrl: null, adminToken: null });
   const [isValidating, setIsValidating] = useState(false);
+  const apiUrl = searchParams.get('api_url');
+  const adminToken = searchParams.get('admin_token');
 
-  useEffect(() => {
-    const apiUrl = searchParams.get('api_url');
-    const adminToken = searchParams.get('admin_token');
+  const config = useMemo<UrlConfig>(() => ({
+    apiUrl,
+    adminToken
+  }), [apiUrl, adminToken]);
 
-    if (apiUrl || adminToken) {
-      setConfig({
-        apiUrl,
-        adminToken
-      });
-    }
-  }, [searchParams]);
-
-  const validateApiConfig = async (apiUrl: string, adminToken: string | null): Promise<ConfigValidationResult> => {
+  const validateApiConfig = useCallback(async (apiUrl: string, adminToken: string | null): Promise<ConfigValidationResult> => {
     try {
       const testUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
 
@@ -80,9 +74,9 @@ export function useUrlConfig() {
         message: `连接失败: ${error instanceof Error ? error.message : '未知错误'}`
       };
     }
-  };
+  }, []);
 
-  const applyConfig = async (): Promise<boolean> => {
+  const applyConfig = useCallback(async (): Promise<boolean> => {
     if (!config.apiUrl && !config.adminToken) {
       return false;
     }
@@ -126,7 +120,7 @@ export function useUrlConfig() {
     } finally {
       setIsValidating(false);
     }
-  };
+  }, [config.adminToken, config.apiUrl, validateApiConfig]);
 
   const hasUrlConfig = !!config.apiUrl || !!config.adminToken;
 
