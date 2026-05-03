@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService } from '@/services/api';
+import { applyApiConfig } from '@/hooks/useApiConfig';
 import { phiraApiService } from '@/services/phiraApi';
 import type { PublicRoom } from '@/types/api';
 
@@ -42,6 +43,15 @@ export function usePublicRoom(roomId: string | undefined, options: UsePublicRoom
   // 获取房间数据
   const fetchRoomDetail = useCallback(async () => {
     if (!roomId) return;
+
+    if (!apiService.getBaseUrl()) {
+      applyApiConfig();
+    }
+
+    if (!apiService.getBaseUrl()) {
+      setError('请先配置 API 地址');
+      return;
+    }
 
     setIsLoading(true);
     setError('');
@@ -87,6 +97,10 @@ export function usePublicRoom(roomId: string | undefined, options: UsePublicRoom
   // WebSocket 连接
   useEffect(() => {
     if (!roomId || !enableWebSocket) return;
+
+    if (!apiService.getBaseUrl()) {
+      applyApiConfig();
+    }
 
     const baseUrl = apiService.getBaseUrl();
     if (!baseUrl) return;

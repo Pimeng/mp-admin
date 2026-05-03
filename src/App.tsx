@@ -1,17 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ConfigDialog } from '@/components/ConfigDialog';
 import { UserMenu } from '@/components/UserMenu';
 import { ProtectedPanel } from '@/components/ProtectedPanel';
+import { PlayerLayout } from '@/components/PlayerLayout';
 import { RoomQueryPanel } from '@/sections/RoomQueryPanel';
 import { ReplayPanel } from '@/sections/ReplayPanel';
 import { AdminApiPanel } from '@/sections/AdminApiPanel';
+import { ModeSelectPage } from '@/pages/ModeSelectPage';
+import { getLastMode, setLastMode, type AppMode } from '@/lib/app-mode';
 import { RoomDetailPage } from '@/pages/RoomDetailPage';
 import { PublicRoomDetailPage } from '@/pages/PublicRoomDetailPage';
-import { apiService } from '@/services/api';
 import { phiraApiService } from '@/services/phiraApi';
+import { applyApiConfig } from '@/hooks/useApiConfig';
 import { useUrlConfig } from '@/hooks/useUrlConfig';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ChangelogDialog } from '@/components/ChangelogDialog';
@@ -19,58 +30,35 @@ import { ClarityNotice } from '@/components/ClarityNotice';
 import { version } from '../package.json';
 import {
   Code2,
-  Film,
+  Gamepad2,
   Loader2,
   Menu,
   Server,
   Settings,
   Shield,
   Tag,
-  Users,
   X,
+  ChevronDown,
+  Home,
 } from 'lucide-react';
-
-const mainTabs = [
-  { path: '/rooms', matchPath: '/rooms', label: '\u623f\u95f4\u67e5\u8be2', icon: Users },
-  { path: '/replay', matchPath: '/replay', label: '\u5f55\u5236\u56de\u653e', icon: Film },
-  { path: '/admin/rooms', matchPath: '/admin', label: '\u7ba1\u7406\u5458', icon: Shield },
-];
-
-export type MainLayoutContext = {
-  roomSearchQuery: string;
-};
 
 function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isConfigured, setIsConfigured] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(() => !!localStorage.getItem('api_base_url'));
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!phiraApiService.getUserToken());
   const [configKey, setConfigKey] = useState(0);
-  const [roomSearchQuery] = useState('');
   const { hasUrlConfig, isValidating, applyConfig } = useUrlConfig();
   const location = useLocation();
-  const roomSearchInputRef = useRef<HTMLInputElement>(null);
-  const isRoomsPage = location.pathname === '/rooms' || location.pathname.startsWith('/rooms/');
+  const navigate = useNavigate();
+
+  const currentMode: AppMode | null = location.pathname.startsWith('/player')
+    ? 'player'
+    : location.pathname.startsWith('/admin')
+    ? 'admin'
+    : null;
 
   useEffect(() => {
-    const savedUrl = localStorage.getItem('api_base_url') || '';
-    const savedTokenType = localStorage.getItem('api_token_type') || 'permanent';
-    const savedUseToken = localStorage.getItem('api_use_token') !== 'false';
-
-    let savedToken = '';
-    if (savedUseToken) {
-      savedToken =
-        savedTokenType === 'temp'
-          ? localStorage.getItem('api_temp_token') || ''
-          : localStorage.getItem('api_admin_token') || '';
-    }
-
-    apiService.setConfig({
-      baseUrl: savedUrl,
-      adminToken: savedUseToken ? savedToken : '',
-    });
-
-    setIsConfigured(!!savedUrl);
-    setIsLoggedIn(!!phiraApiService.getUserToken());
+    applyApiConfig();
   }, []);
 
   useEffect(() => {
@@ -83,6 +71,12 @@ function MainLayout() {
     }
   }, [applyConfig, hasUrlConfig]);
 
+  useEffect(() => {
+    if (currentMode) {
+      setLastMode(currentMode);
+    }
+  }, [currentMode]);
+
   const handleConfigChange = () => {
     const savedUrl = localStorage.getItem('api_base_url') || '';
     setIsConfigured(!!savedUrl);
@@ -93,29 +87,22 @@ function MainLayout() {
     setIsLoggedIn(true);
   };
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isRoomsPage) return;
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        roomSearchInputRef.current?.focus();
-        roomSearchInputRef.current?.select();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isRoomsPage]);
+  const handleSwitchMode = (mode: AppMode) => {
+    setLastMode(mode);
+    navigate(mode === 'player' ? '/player/rooms' : '/admin/rooms');
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b bg-card animate-fade-in">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="flex items-center gap-3 rounded-md text-left transition-opacity hover:opacity-80"
+              onClick={() => navigate('/select')}
+              title="返回模式选择页"
+            >
               <div className="rounded-lg bg-primary p-2 transition-transform hover:scale-105">
                 <Server className="h-6 w-6 text-primary-foreground" />
               </div>
@@ -123,7 +110,7 @@ function MainLayout() {
                 <h1 className="text-xl font-bold">Phira MP</h1>
                 <p className="text-sm text-muted-foreground">多人联机面板</p>
               </div>
-            </div>
+            </button>
 
             <div className="hidden items-center gap-3 md:flex">
               {isValidating && (
@@ -132,6 +119,7 @@ function MainLayout() {
                   正在验证配置...
                 </div>
               )}
+              <ModeSwitcher currentMode={currentMode} onSwitch={handleSwitchMode} />
               <ThemeToggle />
               <ConfigDialog onConfigChange={handleConfigChange}>
                 <Button variant="outline" size="sm" className="relative">
@@ -163,6 +151,14 @@ function MainLayout() {
                   正在验证配置...
                 </div>
               )}
+              <ModeSwitcher
+                currentMode={currentMode}
+                onSwitch={(mode) => {
+                  handleSwitchMode(mode);
+                  setIsMobileMenuOpen(false);
+                }}
+                fullWidth
+              />
               <div className="flex items-center gap-3">
                 <ThemeToggle />
                 <ConfigDialog onConfigChange={handleConfigChange}>
@@ -181,39 +177,9 @@ function MainLayout() {
         </div>
       </header>
 
-      <nav className="border-b bg-card/50 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-        <div className="container mx-auto px-4">
-          <div className="flex gap-1 overflow-x-auto py-2">
-            {mainTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive =
-                location.pathname === tab.matchPath ||
-                location.pathname.startsWith(`${tab.matchPath}/`);
-
-              return (
-                <NavLink
-                  key={tab.path}
-                  to={tab.path}
-                  className={[
-                    'relative flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200',
-                    isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  ].join(' ')}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary" />
-                  )}
-                </NavLink>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
-
       <main className="container mx-auto px-4 py-6">
         <div key={configKey} className="animate-slide-in">
-          <Outlet context={{ roomSearchQuery }} />
+          <Outlet />
         </div>
       </main>
 
@@ -266,6 +232,53 @@ function MainLayout() {
   );
 }
 
+interface ModeSwitcherProps {
+  currentMode: AppMode | null;
+  onSwitch: (mode: AppMode) => void;
+  fullWidth?: boolean;
+}
+
+function ModeSwitcher({ currentMode, onSwitch, fullWidth }: ModeSwitcherProps) {
+  const navigate = useNavigate();
+  const Icon = currentMode === 'admin' ? Shield : currentMode === 'player' ? Gamepad2 : Home;
+  const label = currentMode === 'admin' ? '管理员模式' : currentMode === 'player' ? '玩家模式' : '选择模式';
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className={fullWidth ? 'w-full justify-between' : undefined}>
+          <Icon className="mr-2 h-4 w-4" />
+          {label}
+          <ChevronDown className="ml-2 h-3 w-3 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel>切换使用模式</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => onSwitch('player')}
+          className={currentMode === 'player' ? 'bg-accent' : undefined}
+        >
+          <Gamepad2 className="mr-2 h-4 w-4" />
+          玩家模式
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onSwitch('admin')}
+          className={currentMode === 'admin' ? 'bg-accent' : undefined}
+        >
+          <Shield className="mr-2 h-4 w-4" />
+          管理员模式
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/select')}>
+          <Home className="mr-2 h-4 w-4" />
+          返回选择页
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function AdminLayout() {
   return (
     <ProtectedPanel>
@@ -274,14 +287,35 @@ function AdminLayout() {
   );
 }
 
+function RootRedirect() {
+  const hasApiUrl = !!localStorage.getItem('api_base_url');
+  const lastMode = getLastMode();
+
+  // 没有配置 API URL → 强制走 onboarding
+  if (!hasApiUrl) return <ModeSelectPage />;
+
+  // 已配置 + 有上次模式 → 直接进入
+  if (lastMode === 'player') return <Navigate to="/player/rooms" replace />;
+  if (lastMode === 'admin') return <Navigate to="/admin/rooms" replace />;
+
+  // 已配置但没选过模式 → 让用户选择
+  return <ModeSelectPage />;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Navigate to="/rooms" replace />} />
-          <Route path="rooms" element={<RoomQueryPanel />} />
-          <Route path="replay" element={<ReplayPanel />} />
+          <Route index element={<RootRedirect />} />
+          <Route path="select" element={<ModeSelectPage />} />
+
+          <Route path="player" element={<PlayerLayout />}>
+            <Route index element={<Navigate to="/player/rooms" replace />} />
+            <Route path="rooms" element={<RoomQueryPanel />} />
+            <Route path="replay" element={<ReplayPanel />} />
+          </Route>
+
           <Route path="admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/rooms" replace />} />
             <Route path="rooms" element={<AdminApiPanel />} />
@@ -290,10 +324,13 @@ function App() {
             <Route path="settings" element={<AdminApiPanel />} />
             <Route path="contest" element={<AdminApiPanel />} />
           </Route>
+
+          <Route path="rooms" element={<Navigate to="/player/rooms" replace />} />
+          <Route path="replay" element={<Navigate to="/player/replay" replace />} />
         </Route>
         <Route path="/room/:roomId" element={<RoomDetailPage />} />
         <Route path="/public/room/:roomId" element={<PublicRoomDetailPage />} />
-        <Route path="*" element={<Navigate to="/rooms" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

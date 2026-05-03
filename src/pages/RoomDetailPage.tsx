@@ -52,6 +52,7 @@ export function RoomDetailPage() {
   const {
     room,
     isLoading,
+    error,
     wsConnected,
     wsSubscribed,
     chatMessages,
@@ -83,13 +84,13 @@ export function RoomDetailPage() {
 
   const handleDisbandRoom = async () => {
     if (!roomId) return;
-    
+
     const confirmed = await disbandRoomDialog(roomId);
     if (!confirmed) return;
-    
+
     const success = await disbandRoom();
     if (success) {
-      navigate('/');
+      navigate('/admin/rooms');
     }
   };
 
@@ -129,6 +130,27 @@ export function RoomDetailPage() {
     }
   };
 
+  if (error && !room) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="max-w-md text-center">
+          <RefreshCw className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              返回
+            </Button>
+            <Button size="sm" onClick={() => fetchRoomDetail()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              重试
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!room) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -147,7 +169,7 @@ export function RoomDetailPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/rooms')}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 返回
               </Button>

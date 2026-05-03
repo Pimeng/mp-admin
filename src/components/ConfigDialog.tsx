@@ -367,11 +367,6 @@ export function ConfigDialog({ onConfigChange, children, defaultOpen, onOpenChan
     }
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    onOpenChange?.(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       setOpen(newOpen);

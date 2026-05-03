@@ -54,9 +54,9 @@ export function PublicRoomDetailPage() {
         <div className="text-center">
           <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground mb-4">{error}</p>
-          <Button variant="outline" onClick={() => navigate('/')}>
+          <Button variant="outline" onClick={() => navigate('/player/rooms')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            返回首页
+            返回房间列表
           </Button>
         </div>
       </div>
@@ -81,7 +81,7 @@ export function PublicRoomDetailPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/player/rooms')}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 返回
               </Button>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService } from '@/services/api';
+import { applyApiConfig } from '@/hooks/useApiConfig';
 import { webSocketService } from '@/services/websocket';
 import { toast } from 'sonner';
 import type { Room } from '@/types/api';
@@ -20,6 +21,7 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
 
   const [room, setRoom] = useState<Room | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const [wsConnected, setWsConnected] = useState(false);
   const [wsSubscribed, setWsSubscribed] = useState(false);
   const [chatMessages, setChatMessages] = useState<RoomLogEntry[]>([]);
@@ -31,7 +33,22 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
   const fetchRoomDetail = useCallback(async () => {
     if (!roomId) return;
 
+    if (!apiService.getBaseUrl()) {
+      applyApiConfig();
+    }
+
+    if (!apiService.getBaseUrl()) {
+      setError('请先配置 API 地址');
+      return null;
+    }
+
+    if (!apiService.hasAdminToken()) {
+      setError('请先配置管理员 TOKEN');
+      return null;
+    }
+
     setIsLoading(true);
+    setError('');
     try {
       const data = await apiService.getAdminRooms();
       if (data.ok) {
@@ -46,12 +63,16 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
           }
           return foundRoom;
         } else {
+          setError('房间不存在');
           toast.error('房间不存在');
         }
       } else {
+        const errorMsg = (data as { error?: string }).error || '获取房间信息失败';
+        setError(errorMsg);
         toast.error('获取房间信息失败');
       }
     } catch {
+      setError('请求失败，请检查 API 地址和 TOKEN');
       toast.error('请求失败，请检查 TOKEN 是否有效');
     } finally {
       setIsLoading(false);
@@ -74,6 +95,10 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
   // WebSocket 连接和订阅
   useEffect(() => {
     if (!roomId || !enableWebSocket) return;
+
+    if (!apiService.getBaseUrl()) {
+      applyApiConfig();
+    }
 
     const baseUrl = apiService.getBaseUrl();
     if (!baseUrl) return;
@@ -232,6 +257,7 @@ export function useRoomDetail(roomId: string | undefined, options: UseRoomDetail
   return {
     room,
     isLoading,
+    error,
     wsConnected,
     wsSubscribed,
     chatMessages,

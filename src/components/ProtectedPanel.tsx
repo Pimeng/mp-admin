@@ -5,6 +5,7 @@ import { ConfigDialog } from './ConfigDialog';
 import { AdminTokenDialog, getTokenForConfig } from './AdminTokenDialog';
 import { Lock, Settings, AlertCircle, Shield } from 'lucide-react';
 import { apiService } from '@/services/api';
+import { applyApiConfig } from '@/hooks/useApiConfig';
 
 interface ProtectedPanelProps {
   children: React.ReactNode;
@@ -40,9 +41,13 @@ export function ProtectedPanel({ children, onAuthSuccess }: ProtectedPanelProps)
   }, []);
 
   const checkAuth = async () => {
+    if (!apiService.getBaseUrl()) {
+      applyApiConfig();
+    }
+
     const savedUrl = localStorage.getItem('api_base_url') || '';
     const savedConfigId = localStorage.getItem('api_config_id') || '';
-    
+
     setCurrentConfigId(savedConfigId);
 
     // 检查是否已配置API地址
