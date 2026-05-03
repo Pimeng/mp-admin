@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-05-03T13:58:02.545Z",
-  "totalCommits": 69,
+  "generatedAt": "2026-05-03T20:53:28.727Z",
+  "totalCommits": 71,
   "commits": [
+    {
+      "hash": "787e720",
+      "date": "2026-05-04 04:53:28 +0800",
+      "message": "feat: 添加房间日志功能，支持实时推送房间内事件和聊天记录",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加房间日志功能，支持实时推送房间内事件和聊天记录",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "e5f8927",
+      "date": "2026-05-03 21:57:48 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "68a7f76",
       "date": "2026-05-03 21:57:48 +0800",
