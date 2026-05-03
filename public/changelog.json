@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-05-03T21:21:00.841Z",
-  "totalCommits": 73,
+  "generatedAt": "2026-05-03T22:12:35.854Z",
+  "totalCommits": 75,
   "commits": [
+    {
+      "hash": "8176057",
+      "date": "2026-05-04 06:12:35 +0800",
+      "message": "feat: enhance OTP authentication with CLI approval mode and improve logging",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "enhance OTP authentication with CLI approval mode and improve logging",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "314d814",
+      "date": "2026-05-04 05:21:00 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "38a702f",
       "date": "2026-05-04 05:21:00 +0800",
