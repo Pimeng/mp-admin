@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-04-20T15:12:51.663Z",
-  "totalCommits": 67,
+  "generatedAt": "2026-05-03T13:58:02.545Z",
+  "totalCommits": 69,
   "commits": [
+    {
+      "hash": "68a7f76",
+      "date": "2026-05-03 21:57:48 +0800",
+      "message": "fix: 修正填写api_url/api_token时，出现重复请求的问题",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修正填写api_url/api_token时，出现重复请求的问题",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "0201008",
+      "date": "2026-04-20 23:12:51 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "c46e31f",
       "date": "2026-04-20 23:12:51 +0800",
