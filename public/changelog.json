@@ -1,7 +1,25 @@
 {
-  "generatedAt": "2026-05-03T20:53:28.727Z",
-  "totalCommits": 71,
+  "generatedAt": "2026-05-03T21:21:00.841Z",
+  "totalCommits": 73,
   "commits": [
+    {
+      "hash": "38a702f",
+      "date": "2026-05-04 05:21:00 +0800",
+      "message": "fix: 修复两个关闭按钮的神秘bug",
+      "type": "fix",
+      "typeLabel": "修复",
+      "content": "修复两个关闭按钮的神秘bug",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "fcbddb4",
+      "date": "2026-05-04 04:53:28 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "787e720",
       "date": "2026-05-04 04:53:28 +0800",
