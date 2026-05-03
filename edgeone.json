@@ -3,8 +3,20 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
   "outputDirectory": "./dist",
-  "nodeVersion": "22.11.0",
+  "nodeVersion": "24.5.0",
   "rewrites": [
+    {
+      "source": "/assets/*",
+      "destination": "/assets/:splat"
+    },
+    {
+      "source": "/icon.png",
+      "destination": "/icon.png"
+    },
+    {
+      "source": "/changelog.json",
+      "destination": "/changelog.json"
+    },
     {
       "source": "/*",
       "destination": "/index.html"
