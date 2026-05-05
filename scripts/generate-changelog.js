@@ -29,6 +29,21 @@ const typeMap = {
   revert: '回滚',
 }
 
+// 拉取完整提交历史（避免浅克隆导致记录不全）
+function fetchFullHistory() {
+  try {
+    console.log('正在拉取完整提交历史...')
+    execSync('git fetch --unshallow --filter=blob:none origin', {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    })
+    console.log('✓ 已拉取完整提交历史')
+  } catch (error) {
+    // 可能已经是完整仓库，或远端不支持，忽略错误
+    console.log('拉取完整历史跳过（可能已是完整仓库或不支持）')
+  }
+}
+
 // 获取 Git 提交历史
 function getGitCommits() {
   try {
@@ -81,6 +96,8 @@ function getGitCommits() {
 // 主函数
 function main() {
   console.log('正在生成提交历史...')
+
+  fetchFullHistory()
 
   const commits = getGitCommits()
   console.log(`获取到 ${commits.length} 条提交记录`)
