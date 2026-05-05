@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,12 +26,23 @@ import {
   CheckCircle,
   AlertCircle,
   List,
-  Trash2
+  Trash2,
+  X,
+  Loader2
 } from 'lucide-react';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { apiService } from '@/services/api';
+import { phiraApiService, type UserDetailInfo, type UserListItem } from '@/services/phiraApi';
 import { toast } from 'sonner';
 import { getStateBadgeConfig } from '@/lib/utils';
-import type { Room, UserInfo } from '@/types/api';
+import type { Room } from '@/types/api';
 
 const adminTabs = [
   { value: 'rooms', label: '\u623f\u95f4\u7ba1\u7406' },
@@ -48,7 +59,7 @@ export function AdminApiPanel() {
   const [loading, setLoading] = useState(false);
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [userId, setUserId] = useState('');
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [userInfo, setUserInfo] = useState<UserDetailInfo | null>(null);
   const [roomId, setRoomId] = useState('');
   const [message, setMessage] = useState('');
   const [replayEnabled, setReplayEnabled] = useState(false);
@@ -59,18 +70,118 @@ export function AdminApiPanel() {
   const [contestEnabled, setContestEnabled] = useState(false);
   const [whitelist, setWhitelist] = useState('');
   const [force, setForce] = useState(false);
+
+  // 用户列表缓存（用于白名单自动补全）
+  const cacheData = useMemo(() => phiraApiService.loadUserListCache(), []);
+  const [userList, setUserList] = useState<UserListItem[]>(cacheData?.users || []);
+  const [userListPage, setUserListPage] = useState(cacheData?.page || 1);
+  const [isLoadingUserList, setIsLoadingUserList] = useState(false);
+  const [configSearch, setConfigSearch] = useState('');
+  const [manageSearch, setManageSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<UserListItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [userListTotal, setUserListTotal] = useState(cacheData?.count || 0);
+  const [unknownUsersInfo, setUnknownUsersInfo] = useState<Map<number, UserListItem>>(new Map());
+  const [autoLoadEnabled, setAutoLoadEnabled] = useState(false);
+  const [manualPauseUntil, setManualPauseUntil] = useState(0);
+  const userListLoadedRef = useRef(!!cacheData);
+  const autoLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const roomSearchInputRef = useRef<HTMLInputElement>(null);
   const currentTab = location.pathname.split('/').filter(Boolean)[1] || 'rooms';
   const activeTab = adminTabs.some((tab) => tab.value === currentTab) ? currentTab : 'rooms';
 
+  // 自动加载用户列表
   useEffect(() => {
-    if (activeTab === 'messages') {
-      void ensureAdminRoomsLoaded();
+    if (activeTab !== 'contest') {
+      // 清理定时器
+      if (autoLoadTimerRef.current) {
+        clearTimeout(autoLoadTimerRef.current);
+        autoLoadTimerRef.current = null;
+      }
+      if (manualPauseTimerRef.current) {
+        clearTimeout(manualPauseTimerRef.current);
+        manualPauseTimerRef.current = null;
+      }
+      return;
     }
-    if (activeTab === 'settings') {
-      void loadSettings();
+
+    // 加载下一页的函数
+    const loadNextPage = async (nextPage: number) => {
+      // 检查是否处于手动暂停期
+      if (!autoLoadEnabled || Date.now() < manualPauseUntil) return;
+      
+      try {
+        const data = await phiraApiService.getUserList(20, nextPage);
+        setUserListTotal(data.count);
+        setUserList(prev => {
+          const existingIds = new Set(prev.map(u => u.id));
+          const newUsers = data.results.filter(u => !existingIds.has(u.id));
+          const merged = [...prev, ...newUsers];
+          // 保存到 localStorage
+          phiraApiService.saveUserListCache(merged, data.count, nextPage);
+          return merged;
+        });
+        setUserListPage(nextPage);
+        
+        // 如果还有更多页，1秒后加载下一页
+        const totalPages = Math.ceil(data.count / 20);
+        if (nextPage < totalPages && autoLoadEnabled && Date.now() >= manualPauseUntil) {
+          autoLoadTimerRef.current = setTimeout(() => {
+            void loadNextPage(nextPage + 1);
+          }, 1000);
+        }
+      } catch {
+        // 加载失败，停止自动加载
+        setAutoLoadEnabled(false);
+      }
+    };
+
+    // 首次加载（如果没有缓存）
+    if (!userListLoadedRef.current) {
+      userListLoadedRef.current = true;
+      void phiraApiService.getUserList(20, 1).then(data => {
+        setUserList(data.results);
+        setUserListTotal(data.count);
+        setUserListPage(1);
+        phiraApiService.saveUserListCache(data.results, data.count, 1);
+        
+        // 启动自动加载
+        const totalPages = Math.ceil(data.count / 20);
+        if (totalPages > 1 && autoLoadEnabled) {
+          autoLoadTimerRef.current = setTimeout(() => {
+            void loadNextPage(2);
+          }, 1000);
+        }
+      }).catch(() => {
+        toast.error('加载用户列表失败');
+      });
+    } else if (autoLoadEnabled && Date.now() >= manualPauseUntil) {
+      // 有缓存且自动加载开启，继续加载下一页
+      const totalPages = Math.ceil(userListTotal / 20);
+      if (userListPage < totalPages) {
+        autoLoadTimerRef.current = setTimeout(() => {
+          void loadNextPage(userListPage + 1);
+        }, 1000);
+      }
     }
-  }, [activeTab]);
+
+    return () => {
+      if (autoLoadTimerRef.current) {
+        clearTimeout(autoLoadTimerRef.current);
+        autoLoadTimerRef.current = null;
+      }
+      if (manualPauseTimerRef.current) {
+        clearTimeout(manualPauseTimerRef.current);
+        manualPauseTimerRef.current = null;
+      }
+      if (searchAbortRef.current) {
+        searchAbortRef.current.abort();
+        searchAbortRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, autoLoadEnabled, manualPauseUntil]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -88,6 +199,146 @@ export function AdminApiPanel() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [activeTab]);
+
+  // 加载用户列表（用于白名单自动补全）
+  const loadUserList = async (page: number = 1, append: boolean = false) => {
+    setIsLoadingUserList(true);
+    try {
+      const data = await phiraApiService.getUserList(20, page);
+      setUserListTotal(data.count);
+      if (append) {
+        setUserList(prev => {
+          const existingIds = new Set(prev.map(u => u.id));
+          const newUsers = data.results.filter(u => !existingIds.has(u.id));
+          const merged = [...prev, ...newUsers];
+          phiraApiService.saveUserListCache(merged, data.count, page);
+          return merged;
+        });
+      } else {
+        setUserList(data.results);
+        phiraApiService.saveUserListCache(data.results, data.count, page);
+      }
+      setUserListPage(page);
+    } catch {
+      toast.error('加载用户列表失败');
+    } finally {
+      setIsLoadingUserList(false);
+    }
+  };
+
+  // 添加用户到白名单
+  const addToWhitelist = (userId: number) => {
+    const currentIds = parseWhitelist();
+    if (!currentIds.includes(userId)) {
+      const newIds = [...currentIds, userId];
+      setWhitelist(newIds.join(', '));
+    }
+  };
+
+  // 从白名单移除用户
+  const removeFromWhitelist = (userId: number) => {
+    const currentIds = parseWhitelist();
+    const newIds = currentIds.filter(id => id !== userId);
+    setWhitelist(newIds.join(', '));
+  };
+
+  // 获取白名单中的用户信息
+  const getWhitelistUsers = (): UserListItem[] => {
+    const ids = parseWhitelist();
+    return ids
+      .map(id => userList.find(u => u.id === id))
+      .filter((u): u is UserListItem => u !== undefined);
+  };
+
+  // 搜索用户（调用 API），带取消机制
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchUsers = async (keyword: string) => {
+    if (!keyword.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    // 取消之前的搜索请求
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    searchAbortRef.current = abortController;
+
+    setIsSearching(true);
+    setSearchResults([]); // 清空旧结果，避免显示之前搜索的内容
+    try {
+      const data = await phiraApiService.getUserList(20, 1, keyword, abortController.signal);
+      
+      // 如果已经被取消了，就不更新结果
+      if (abortController.signal.aborted) return;
+
+      setSearchResults(data.results);
+
+      // 将搜索结果缓存到 userList（按ID去重并排序）
+      if (data.results.length > 0) {
+        setUserList(prev => {
+          const existingIds = new Set(prev.map(u => u.id));
+          const newUsers = data.results.filter(u => !existingIds.has(u.id));
+          const merged = [...prev, ...newUsers].sort((a, b) => a.id - b.id);
+          // 保存到 localStorage
+          phiraApiService.saveUserListCache(merged, userListTotal, userListPage);
+          return merged;
+        });
+      }
+    } catch {
+      if (!abortController.signal.aborted) {
+        setSearchResults([]);
+      }
+    } finally {
+      if (!abortController.signal.aborted) {
+        setIsSearching(false);
+      }
+    }
+  };
+
+  // 过滤用户列表（用于自动补全）
+  const filteredUsers = (searchText: string): UserListItem[] => {
+    if (!searchText.trim()) return userList.slice(0, 20);
+    const search = searchText.toLowerCase();
+    return userList.filter(u =>
+      u.name.toLowerCase().includes(search) ||
+      u.id.toString().includes(search)
+    ).slice(0, 20);
+  };
+
+  // 加载白名单中未知用户的详细信息
+  useEffect(() => {
+    const loadUnknownUsers = async () => {
+      const ids = parseWhitelist().filter(id => 
+        !userList.find(u => u.id === id) && 
+        !unknownUsersInfo.has(id)
+      );
+      if (ids.length === 0) return;
+
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const info = await phiraApiService.getUserInfo(id);
+            return { id: info.id, name: info.name, avatar: info.avatar };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      setUnknownUsersInfo(prev => {
+        const next = new Map(prev);
+        results.forEach(user => {
+          if (user) next.set(user.id, user);
+        });
+        return next;
+      });
+    };
+
+    void loadUnknownUsers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [whitelist, userList]);
 
   const fetchAdminRooms = async () => {
     setLoading(true);
@@ -140,12 +391,8 @@ export function AdminApiPanel() {
       return;
     }
     try {
-      const data = await apiService.getUser(Number(userId));
-      if (data.ok) {
-        setUserInfo(data.user);
-      } else {
-        toast.error('用户不存在');
-      }
+      const data = await phiraApiService.getUserInfo(Number(userId));
+      setUserInfo(data);
     } catch (error) {
       toast.error('查询失败');
     }
@@ -550,18 +797,19 @@ export function AdminApiPanel() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{userInfo.name}</span>
                       <div className="flex gap-1">
-                        {userInfo.connected ? (
-                          <Badge variant="default">在线</Badge>
-                        ) : (
-                          <Badge variant="secondary">离线</Badge>
-                        )}
                         {userInfo.banned && <Badge variant="destructive">已封禁</Badge>}
+                        {userInfo.login_banned && <Badge variant="destructive">已禁止登录</Badge>}
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground space-y-1">
                       <div>ID: {userInfo.id}</div>
-                      <div>房间: {userInfo.room || '无'}</div>
-                      <div>观战模式: {userInfo.monitor ? '是' : '否'}</div>
+                      <div>RKS: {userInfo.rks}</div>
+                      <div>经验: {userInfo.exp}</div>
+                      <div>语言: {userInfo.language}</div>
+                      <div>加入时间: {new Date(userInfo.joined).toLocaleDateString()}</div>
+                      <div>最后登录: {new Date(userInfo.last_login).toLocaleDateString()}</div>
+                      <div>粉丝: {userInfo.follower_count} | 关注: {userInfo.following_count}</div>
+                      {userInfo.bio && <div>简介: {userInfo.bio}</div>}
                     </div>
                   </div>
                 )}
@@ -765,20 +1013,163 @@ export function AdminApiPanel() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="whitelist" className="flex items-center gap-2">
-                    <List className="h-4 w-4" />
-                    白名单用户 ID
-                  </Label>
-                  <textarea
-                    id="whitelist"
-                    className="w-full min-h-[80px] p-3 border rounded-md text-sm"
-                    placeholder="输入用户 ID，用逗号分隔，例如: 100, 200, 300"
-                    value={whitelist}
-                    onChange={(e) => setWhitelist(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    留空则默认取当前房间内所有用户为白名单
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="whitelist" className="flex items-center gap-2">
+                      <List className="h-4 w-4" />
+                      白名单用户
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      已加载 {userList.length} / {userListTotal} 用户
+                    </span>
+                  </div>
+                  
+                  {/* 已选用户标签 */}
+                  <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 border rounded-md bg-muted/50">
+                    {getWhitelistUsers().length === 0 && (
+                      <span className="text-xs text-muted-foreground py-1">未选择用户（留空则取房间内所有用户）</span>
+                    )}
+                    {getWhitelistUsers().map(user => (
+                      <Badge key={user.id} variant="secondary" className="gap-1 pr-1 items-center">
+                        {user.avatar && (
+                          <img src={user.avatar} alt="" className="w-4 h-4 rounded-full" />
+                        )}
+                        {user.name}
+                        <span className="text-muted-foreground">#{user.id}</span>
+                        <button
+                          onClick={() => removeFromWhitelist(user.id)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    {parseWhitelist().filter(id => !userList.find(u => u.id === id)).map(id => {
+                      const unknown = unknownUsersInfo.get(id);
+                      return (
+                        <Badge key={id} variant="outline" className="gap-1 pr-1 items-center">
+                          {unknown ? (
+                            <>
+                              {unknown.avatar && (
+                                <img src={unknown.avatar} alt="" className="w-4 h-4 rounded-full" />
+                              )}
+                              {unknown.name}
+                              <span className="text-muted-foreground">#{id}</span>
+                            </>
+                          ) : (
+                            `用户 #${id}`
+                          )}
+                          <button
+                            onClick={() => removeFromWhitelist(id)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* 自动补全输入 */}
+                  <Command shouldFilter={false} className="border rounded-md overflow-visible">
+                    <CommandInput
+                      placeholder="搜索用户ID或用户名添加..."
+                      value={configSearch}
+                      onValueChange={(value) => {
+                        setConfigSearch(value);
+                        void searchUsers(value);
+                      }}
+                    />
+                    {configSearch && (
+                      <CommandList className="border-t">
+                        <CommandEmpty>{isSearching ? '搜索中...' : '未找到匹配的用户'}</CommandEmpty>
+                        <CommandGroup>
+                          {(searchResults.length > 0 ? searchResults : filteredUsers(configSearch)).map(user => (
+                            <CommandItem
+                              key={user.id}
+                              value={`${user.id}-${user.name}`}
+                              onSelect={() => {
+                                addToWhitelist(user.id);
+                                setConfigSearch('');
+                                setSearchResults([]);
+                              }}
+                              disabled={parseWhitelist().includes(user.id)}
+                              className="gap-2"
+                            >
+                              {user.avatar && (
+                                <img src={user.avatar} alt="" className="w-5 h-5 rounded-full" />
+                              )}
+                              <span className="font-medium">{user.name}</span>
+                              <span className="text-muted-foreground">#{user.id}</span>
+                              {parseWhitelist().includes(user.id) && (
+                                <span className="ml-auto text-xs text-muted-foreground">已添加</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    )}
+                  </Command>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // 手动加载时暂停自动加载3秒
+                          const resumeTime = Date.now() + 3000;
+                          setManualPauseUntil(resumeTime);
+                          if (manualPauseTimerRef.current) {
+                            clearTimeout(manualPauseTimerRef.current);
+                          }
+                          manualPauseTimerRef.current = setTimeout(() => {
+                            setManualPauseUntil(0);
+                          }, 3000);
+                          void loadUserList(userListPage + 1, true);
+                        }}
+                        disabled={isLoadingUserList}
+                        className="text-xs"
+                      >
+                        {isLoadingUserList && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                        加载更多
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setAutoLoadEnabled(!autoLoadEnabled);
+                          if (!autoLoadEnabled) {
+                            // 重新启动自动加载
+                            const totalPages = Math.ceil(userListTotal / 20);
+                            if (userListPage < totalPages) {
+                              void loadUserList(userListPage + 1, true);
+                            }
+                          }
+                        }}
+                        className="text-xs"
+                      >
+                        {autoLoadEnabled ? '暂停自动加载' : '继续自动加载'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          phiraApiService.clearUserListCache();
+                          setUserList([]);
+                          setUserListPage(1);
+                          setUserListTotal(0);
+                          userListLoadedRef.current = false;
+                          toast.success('用户列表缓存已清除');
+                        }}
+                        className="text-xs text-destructive hover:text-destructive"
+                      >
+                        清除缓存
+                      </Button>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      页 {userListPage} / {Math.ceil(userListTotal / 20) || '?'}
+                    </span>
+                  </div>
                 </div>
 
                 <Button 
@@ -801,13 +1192,95 @@ export function AdminApiPanel() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>更新白名单</Label>
-                  <textarea
-                    className="w-full min-h-[80px] p-3 border rounded-md text-sm"
-                    placeholder="输入新的用户 ID 列表，用逗号分隔"
-                    value={whitelist}
-                    onChange={(e) => setWhitelist(e.target.value)}
-                  />
+                  <Label>当前白名单</Label>
+                  
+                  {/* 已选用户标签 */}
+                  <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 border rounded-md bg-muted/50">
+                    {getWhitelistUsers().length === 0 && (
+                      <span className="text-xs text-muted-foreground py-1">未选择用户</span>
+                    )}
+                    {getWhitelistUsers().map(user => (
+                      <Badge key={user.id} variant="secondary" className="gap-1 pr-1 items-center">
+                        {user.avatar && (
+                          <img src={user.avatar} alt="" className="w-4 h-4 rounded-full" />
+                        )}
+                        {user.name}
+                        <span className="text-muted-foreground">#{user.id}</span>
+                        <button
+                          onClick={() => removeFromWhitelist(user.id)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    {parseWhitelist().filter(id => !userList.find(u => u.id === id)).map(id => {
+                      const unknown = unknownUsersInfo.get(id);
+                      return (
+                        <Badge key={id} variant="outline" className="gap-1 pr-1 items-center">
+                          {unknown ? (
+                            <>
+                              {unknown.avatar && (
+                                <img src={unknown.avatar} alt="" className="w-4 h-4 rounded-full" />
+                              )}
+                              {unknown.name}
+                              <span className="text-muted-foreground">#{id}</span>
+                            </>
+                          ) : (
+                            `用户 #${id}`
+                          )}
+                          <button
+                            onClick={() => removeFromWhitelist(id)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* 自动补全输入 */}
+                  <Command shouldFilter={false} className="border rounded-md overflow-visible">
+                    <CommandInput
+                      placeholder="搜索用户ID或用户名添加..."
+                      value={manageSearch}
+                      onValueChange={(value) => {
+                        setManageSearch(value);
+                        void searchUsers(value);
+                      }}
+                    />
+                    {manageSearch && (
+                      <CommandList className="border-t">
+                        <CommandEmpty>{isSearching ? '搜索中...' : '未找到匹配的用户'}</CommandEmpty>
+                        <CommandGroup>
+                          {(searchResults.length > 0 ? searchResults : filteredUsers(manageSearch)).map(user => (
+                            <CommandItem
+                              key={user.id}
+                              value={`${user.id}-${user.name}`}
+                              onSelect={() => {
+                                addToWhitelist(user.id);
+                                setManageSearch('');
+                                setSearchResults([]);
+                              }}
+                              disabled={parseWhitelist().includes(user.id)}
+                              className="gap-2"
+                            >
+                              {user.avatar && (
+                                <img src={user.avatar} alt="" className="w-5 h-5 rounded-full" />
+                              )}
+                              <span className="font-medium">{user.name}</span>
+                              <span className="text-muted-foreground">#{user.id}</span>
+                              {parseWhitelist().includes(user.id) && (
+                                <span className="ml-auto text-xs text-muted-foreground">已添加</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    )}
+                  </Command>
+                  
                   <p className="text-xs text-muted-foreground">
                     会自动将当前房间内用户补进白名单
                   </p>

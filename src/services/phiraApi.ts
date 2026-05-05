@@ -80,10 +80,21 @@ export interface UserDetailInfo {
   following: boolean;
 }
 
+// 轻量级用户信息（用于用户列表缓存）
+export interface UserListItem {
+  id: number;
+  name: string;
+  avatar: string;
+}
+
 const PHIRA_API_BASE = 'https://phira.5wyxi.com';
 
 const STORAGE_KEY_TOKEN = 'phira_user_token';
 const STORAGE_KEY_USER_ID = 'phira_user_id';
+const STORAGE_KEY_USER_LIST = 'phira_user_list_cache';
+const STORAGE_KEY_USER_LIST_COUNT = 'phira_user_list_count';
+const STORAGE_KEY_USER_LIST_PAGE = 'phira_user_list_page';
+const STORAGE_KEY_USER_LIST_TIMESTAMP = 'phira_user_list_timestamp';
 
 class PhiraApiService {
   private userToken: string = '';
@@ -142,6 +153,48 @@ class PhiraApiService {
     this.userToken = '';
     this.userId = 0;
     this.saveToStorage();
+  }
+
+  // 用户列表 localStorage 缓存
+  saveUserListCache(users: UserListItem[], count: number, page: number) {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEY_USER_LIST, JSON.stringify(users));
+      localStorage.setItem(STORAGE_KEY_USER_LIST_COUNT, count.toString());
+      localStorage.setItem(STORAGE_KEY_USER_LIST_PAGE, page.toString());
+      localStorage.setItem(STORAGE_KEY_USER_LIST_TIMESTAMP, Date.now().toString());
+    } catch {
+      // localStorage 满了或不可用，静默失败
+    }
+  }
+
+  loadUserListCache(): { users: UserListItem[]; count: number; page: number; timestamp: number } | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const usersStr = localStorage.getItem(STORAGE_KEY_USER_LIST);
+      const countStr = localStorage.getItem(STORAGE_KEY_USER_LIST_COUNT);
+      const pageStr = localStorage.getItem(STORAGE_KEY_USER_LIST_PAGE);
+      const timestampStr = localStorage.getItem(STORAGE_KEY_USER_LIST_TIMESTAMP);
+      
+      if (!usersStr || !countStr || !pageStr || !timestampStr) return null;
+      
+      return {
+        users: JSON.parse(usersStr),
+        count: parseInt(countStr, 10),
+        page: parseInt(pageStr, 10),
+        timestamp: parseInt(timestampStr, 10),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearUserListCache() {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(STORAGE_KEY_USER_LIST);
+    localStorage.removeItem(STORAGE_KEY_USER_LIST_COUNT);
+    localStorage.removeItem(STORAGE_KEY_USER_LIST_PAGE);
+    localStorage.removeItem(STORAGE_KEY_USER_LIST_TIMESTAMP);
   }
 
   // 登录获取 token
@@ -224,6 +277,36 @@ class PhiraApiService {
     }
     
     return data;
+  }
+
+  // 获取用户列表（只返回轻量字段）
+  async getUserList(
+    pageNum: number = 20, 
+    page: number = 1, 
+    search?: string,
+    signal?: AbortSignal
+  ): Promise<{ count: number; results: UserListItem[] }> {
+    const params = new URLSearchParams();
+    params.set('pageNum', pageNum.toString());
+    params.set('page', page.toString());
+    if (search) params.set('search', search);
+
+    const response = await fetch(`${PHIRA_API_BASE}/user/?${params.toString()}`, { signal });
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    // 只取需要的字段，减少内存占用
+    return {
+      count: data.count,
+      results: data.results.map((u: UserDetailInfo) => ({
+        id: u.id,
+        name: u.name,
+        avatar: u.avatar,
+      })),
+    };
   }
 
   // 获取用户详细信息（带缓存）
