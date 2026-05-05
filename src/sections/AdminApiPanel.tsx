@@ -67,6 +67,9 @@ export function AdminApiPanel() {
     if (activeTab === 'messages') {
       void ensureAdminRoomsLoaded();
     }
+    if (activeTab === 'settings') {
+      void loadSettings();
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -233,6 +236,23 @@ export function AdminApiPanel() {
       }
     } catch (error) {
       toast.error('请求失败');
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const [replayResult, roomCreationResult] = await Promise.all([
+        apiService.getReplayConfig(),
+        apiService.getRoomCreationConfig(),
+      ]);
+      if (replayResult.ok) {
+        setReplayEnabled(replayResult.enabled);
+      }
+      if (roomCreationResult.ok) {
+        setRoomCreationEnabled(roomCreationResult.enabled);
+      }
+    } catch {
+      toast.error('获取功能开关状态失败');
     }
   };
 
