@@ -308,7 +308,7 @@ export function ReplayPanel() {
   };
 
   // 修改自动上传配置
-  const handleUpdateAutoUploadConfig = async (enabled: boolean, show: boolean) => {
+  const handleUpdateAutoUploadConfig = async (show: boolean) => {
     const token = phiraApiService.getUserToken();
     if (!token) {
       toast.error('请先登录 Phira 账号');
@@ -317,7 +317,7 @@ export function ReplayPanel() {
 
     setConfigLoading(true);
     try {
-      const result = await apiService.setAutoUploadConfig({ token, enabled, show });
+      const result = await apiService.setAutoUploadConfig({ token, show });
       if (result.ok) {
         setAutoUploadConfig(result);
         toast.success('配置已更新');
@@ -460,44 +460,65 @@ export function ReplayPanel() {
                                 <div>难度: {chartInfo.difficulty.toFixed(1)}</div>
                               </div>
                             )}
-                            {chart.replays.map((replay) => (
-                              <div
-                                key={replay.timestamp}
-                                className="flex items-center justify-between p-2 bg-muted rounded transition-colors hover:bg-muted/80"
-                              >
-                                <div className="flex items-center gap-2 text-sm">
-                                  <FileAudio className="h-4 w-4" />
-                                  <span>{new Date(replay.timestamp).toLocaleString()}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    ID: {replay.recordId}
-                                  </Badge>
+                            {chart.replays.map((replay) => {
+                              const isUploaded = !!replay.scoreId;
+                              const uploadKey = `${chart.chartId}-${replay.timestamp}`;
+                              return (
+                                <div
+                                  key={replay.timestamp}
+                                  className="flex items-center justify-between p-2 bg-muted rounded transition-colors hover:bg-muted/80"
+                                >
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <FileAudio className="h-4 w-4" />
+                                    <span>{new Date(replay.timestamp).toLocaleString()}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      ID: {replay.recordId}
+                                    </Badge>
+                                    {isUploaded && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        已上传
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-1">
+                                    {isUploaded && replay.downloadUrl ? (
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost"
+                                        onClick={() => window.open(replay.downloadUrl, '_blank')}
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                    ) : (
+                                      <>
+                                        <Button 
+                                          size="sm" 
+                                          variant="ghost"
+                                          onClick={() => handleDownloadReplay(chart.chartId, replay.timestamp)}
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => openUploadConfirm(chart.chartId, replay.timestamp)}
+                                          disabled={uploadingReplays.has(uploadKey)}
+                                        >
+                                          <Upload className={`h-4 w-4 ${uploadingReplays.has(uploadKey) ? 'animate-spin' : ''}`} />
+                                        </Button>
+                                        <Button 
+                                          size="sm" 
+                                          variant="ghost"
+                                          onClick={() => handleDeleteReplay(chart.chartId, replay.timestamp)}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex gap-1">
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost"
-                                    onClick={() => handleDownloadReplay(chart.chartId, replay.timestamp)}
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openUploadConfirm(chart.chartId, replay.timestamp)}
-                                    disabled={uploadingReplays.has(`${chart.chartId}-${replay.timestamp}`)}
-                                  >
-                                    <Upload className={`h-4 w-4 ${uploadingReplays.has(`${chart.chartId}-${replay.timestamp}`) ? 'animate-spin' : ''}`} />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost"
-                                    onClick={() => handleDeleteReplay(chart.chartId, replay.timestamp)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -544,22 +565,11 @@ export function ReplayPanel() {
                   服务器未配置分享站，自动上传功能不可用
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="auto-upload">启用自动上传</Label>
-                  <p className="text-sm text-muted-foreground">
-                    游戏结束后自动上传回放到分享站
-                  </p>
+              {autoUploadConfig.shareStationConfigured && !autoUploadConfig.autoUploadEnabled && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                  服务器已关闭自动上传功能，请联系管理员开启
                 </div>
-                <Switch
-                  id="auto-upload"
-                  checked={autoUploadConfig.enabled}
-                  onCheckedChange={(checked) =>
-                    handleUpdateAutoUploadConfig(checked, autoUploadConfig.show)
-                  }
-                  disabled={configLoading || !autoUploadConfig.shareStationConfigured}
-                />
-              </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="show-replay">上传后显示</Label>
@@ -571,9 +581,9 @@ export function ReplayPanel() {
                   id="show-replay"
                   checked={autoUploadConfig.show}
                   onCheckedChange={(checked) =>
-                    handleUpdateAutoUploadConfig(autoUploadConfig.enabled, checked)
+                    handleUpdateAutoUploadConfig(checked)
                   }
-                  disabled={configLoading || !autoUploadConfig.shareStationConfigured}
+                  disabled={configLoading || !autoUploadConfig.shareStationConfigured || !autoUploadConfig.autoUploadEnabled}
                 />
               </div>
             </div>

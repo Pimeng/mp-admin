@@ -60,7 +60,7 @@ export interface UserInfo {
 
 export interface ReplayChart {
   chartId: number;
-  replays: { timestamp: number; recordId: number }[];
+  replays: { timestamp: number; recordId: number; scoreId?: number; downloadUrl?: string }[];
 }
 
 export interface ReplayAuthResponse {
@@ -131,14 +131,13 @@ export interface ReplayUploadResponse {
 export interface AutoUploadConfigResponse {
   ok: boolean;
   userId: number;
-  enabled: boolean;
   show: boolean;
   shareStationConfigured: boolean;
+  autoUploadEnabled: boolean;
   error?: string;
 }
 
 export interface AutoUploadConfigRequest {
   token: string;
-  enabled?: boolean;
   show?: boolean;
 }
