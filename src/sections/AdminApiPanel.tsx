@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,17 @@ const adminTabs = [
   { value: 'settings', label: '\u529f\u80fd\u5f00\u5173' },
   { value: 'contest', label: '\u6bd4\u8d5b' },
 ];
+
+const getApiErrorMessage = (response: unknown, fallback = '未知错误') => {
+  if (response && typeof response === 'object' && 'error' in response) {
+    const { error } = response as { error?: unknown };
+    if (typeof error === 'string' && error.trim()) {
+      return error;
+    }
+  }
+
+  return fallback;
+};
 
 export function AdminApiPanel() {
   const navigate = useNavigate();
@@ -348,7 +359,7 @@ export function AdminApiPanel() {
         setRooms(data.rooms || []);
         toast.success(`获取到 ${data.rooms.length} 个房间`);
       } else {
-        const errorMsg = (data as any).error || '未知错误';
+        const errorMsg = getApiErrorMessage(data);
         if (errorMsg === 'unauthorized') {
           toast.error('管理员 TOKEN 无效或已过期，请重新配置');
         } else if (errorMsg === 'admin-disabled') {
@@ -357,7 +368,7 @@ export function AdminApiPanel() {
           toast.error('获取房间列表失败: ' + errorMsg);
         }
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败，请检查 API 地址和 TOKEN 是否有效');
     } finally {
       setLoading(false);
@@ -375,7 +386,7 @@ export function AdminApiPanel() {
       if (data.ok) {
         setRooms(data.rooms || []);
       } else {
-        const errorMsg = (data as any).error || '未知错误';
+        const errorMsg = getApiErrorMessage(data);
         toast.error('获取房间列表失败: ' + errorMsg);
       }
     } catch {
@@ -393,7 +404,7 @@ export function AdminApiPanel() {
     try {
       const data = await phiraApiService.getUserInfo(Number(userId));
       setUserInfo(data);
-    } catch (error) {
+    } catch {
       toast.error('查询失败');
     }
   };
@@ -411,7 +422,7 @@ export function AdminApiPanel() {
       } else {
         toast.error('操作失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     }
   };
@@ -428,7 +439,7 @@ export function AdminApiPanel() {
       } else {
         toast.error('操作失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     }
   };
@@ -442,10 +453,10 @@ export function AdminApiPanel() {
         // 刷新房间列表
         fetchAdminRooms();
       } else {
-        const errorMsg = (result as any).error || '未知错误';
+        const errorMsg = getApiErrorMessage(result);
         toast.error('解散失败: ' + errorMsg);
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     }
   };
@@ -463,7 +474,7 @@ export function AdminApiPanel() {
       } else {
         toast.error('广播失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     }
   };
@@ -481,12 +492,12 @@ export function AdminApiPanel() {
       } else {
         toast.error('发送失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     }
   };
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const [replayResult, roomCreationResult] = await Promise.all([
         apiService.getReplayConfig(),
@@ -501,7 +512,13 @@ export function AdminApiPanel() {
     } catch {
       toast.error('获取功能开关状态失败');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      void loadSettings();
+    }
+  }, [activeTab, loadSettings]);
 
   const handleToggleReplay = async () => {
     try {
@@ -510,7 +527,7 @@ export function AdminApiPanel() {
         setReplayEnabled(result.enabled);
         toast.success(`回放录制已${result.enabled ? '开启' : '关闭'}`);
       }
-    } catch (error) {
+    } catch {
       toast.error('设置失败');
     }
   };
@@ -522,7 +539,7 @@ export function AdminApiPanel() {
         setRoomCreationEnabled(result.enabled);
         toast.success(`房间创建已${result.enabled ? '开启' : '关闭'}`);
       }
-    } catch (error) {
+    } catch {
       toast.error('设置失败');
     }
   };
@@ -551,7 +568,7 @@ export function AdminApiPanel() {
       } else {
         toast.error('配置失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     } finally {
       setLoading(false);
@@ -572,7 +589,7 @@ export function AdminApiPanel() {
       } else {
         toast.error('更新失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     } finally {
       setLoading(false);
@@ -592,7 +609,7 @@ export function AdminApiPanel() {
       } else {
         toast.error('开始失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('请求失败');
     } finally {
       setLoading(false);

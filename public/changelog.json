@@ -1,7 +1,61 @@
 {
-  "generatedAt": "2026-05-05T13:58:51.395Z",
-  "totalCommits": 83,
+  "generatedAt": "2026-05-07T00:34:09.110Z",
+  "totalCommits": 89,
   "commits": [
+    {
+      "hash": "a1518d3",
+      "date": "2026-05-06 19:29:13 +0800",
+      "message": "chore: 更换umami地址",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更换umami地址",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "f0a58be",
+      "date": "2026-05-05 23:58:32 +0800",
+      "message": "feat: 添加用户列表缓存和搜索功能，优化用户信息加载",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加用户列表缓存和搜索功能，优化用户信息加载",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "a1a00ac",
+      "date": "2026-05-05 22:40:22 +0800",
+      "message": "feat: 添加房间创建和回放录制开关查询接口",
+      "type": "feat",
+      "typeLabel": "新功能",
+      "content": "添加房间创建和回放录制开关查询接口",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "eb345b6",
+      "date": "2026-05-05 22:12:57 +0800",
+      "message": "chore: 修改脚本移除警告",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "修改脚本移除警告",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "d28c63a",
+      "date": "2026-05-05 22:07:32 +0800",
+      "message": "chore: 移除 Git 钩子和更新构建脚本以自动生成 changelog.json",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "移除 Git 钩子和更新构建脚本以自动生成 changelog.json",
+      "author": "Pimeng"
+    },
+    {
+      "hash": "dd269ed",
+      "date": "2026-05-05 21:58:51 +0800",
+      "message": "chore: 更新 changelog.json [auto]",
+      "type": "chore",
+      "typeLabel": "杂项",
+      "content": "更新 changelog.json [auto]",
+      "author": "Pimeng"
+    },
     {
       "hash": "8386c5a",
       "date": "2026-05-05 21:58:51 +0800",
