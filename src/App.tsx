@@ -26,7 +26,7 @@ import { applyApiConfig } from '@/hooks/useApiConfig';
 import { useUrlConfig } from '@/hooks/useUrlConfig';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ChangelogDialog } from '@/components/ChangelogDialog';
-import { ClarityNotice } from '@/components/ClarityNotice';
+import BrutalCookieConsent from '@/components/BrutalCookieConsent';
 import { version } from '../package.json';
 import {
   Code2,
@@ -227,7 +227,7 @@ function MainLayout() {
       </footer>
 
       <Toaster position="top-right" />
-      <ClarityNotice />
+      <BrutalCookieConsent />
     </div>
   );
 }
