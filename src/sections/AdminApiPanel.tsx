@@ -6,11 +6,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RoomIdCombobox } from '@/components/RoomIdCombobox';
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Shield,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { AdminSidebar } from '@/components/AdminSidebar';
+import { adminNavItems } from '@/lib/admin-nav';
+import { StatTiles } from '@/components/StatTiles';
+import {
   Users,
   Ban,
   MessageSquare,
@@ -28,7 +39,11 @@ import {
   List,
   Trash2,
   X,
-  Loader2
+  Loader2,
+  LayoutGrid,
+  Gamepad2,
+  Clock,
+  Lock,
 } from 'lucide-react';
 import {
   Command,
@@ -41,16 +56,10 @@ import {
 import { apiService } from '@/services/api';
 import { phiraApiService, type UserDetailInfo, type UserListItem } from '@/services/phiraApi';
 import { toast } from 'sonner';
-import { getStateBadgeConfig } from '@/lib/utils';
+import { cn, getStateBadgeConfig } from '@/lib/utils';
 import type { Room } from '@/types/api';
 
-const adminTabs = [
-  { value: 'rooms', label: '\u623f\u95f4\u7ba1\u7406' },
-  { value: 'users', label: '\u7528\u6237\u7ba1\u7406' },
-  { value: 'messages', label: '\u6d88\u606f\u5e7f\u64ad' },
-  { value: 'settings', label: '\u529f\u80fd\u5f00\u5173' },
-  { value: 'contest', label: '\u6bd4\u8d5b' },
-];
+type RoomStateFilter = 'all' | 'playing' | 'waiting' | 'locked';
 
 const getApiErrorMessage = (response: unknown, fallback = '未知错误') => {
   if (response && typeof response === 'object' && 'error' in response) {
@@ -69,6 +78,7 @@ export function AdminApiPanel() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
+  const [roomStateFilter, setRoomStateFilter] = useState<RoomStateFilter>('all');
   const [userId, setUserId] = useState('');
   const [userInfo, setUserInfo] = useState<UserDetailInfo | null>(null);
   const [roomId, setRoomId] = useState('');
@@ -100,7 +110,7 @@ export function AdminApiPanel() {
   const manualPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const roomSearchInputRef = useRef<HTMLInputElement>(null);
   const currentTab = location.pathname.split('/').filter(Boolean)[1] || 'rooms';
-  const activeTab = adminTabs.some((tab) => tab.value === currentTab) ? currentTab : 'rooms';
+  const activeTab = adminNavItems.some((item) => item.value === currentTab) ? currentTab : 'rooms';
 
   // 自动加载用户列表
   useEffect(() => {
@@ -622,7 +632,7 @@ export function AdminApiPanel() {
   };
 
   const normalizedRoomQuery = roomSearchQuery.trim().toLowerCase();
-  const filteredRooms = normalizedRoomQuery
+  const searchedRooms = normalizedRoomQuery
     ? rooms
         .map((room, index) => {
           const roomId = room.roomid?.toLowerCase() || '';
@@ -662,48 +672,78 @@ export function AdminApiPanel() {
         .map(item => item.room)
     : rooms;
 
+  const matchesStateFilter = (room: Room) => {
+    switch (roomStateFilter) {
+      case 'playing':
+        return room.state?.type === 'playing';
+      case 'waiting':
+        return room.state?.type === 'select_chart' || room.state?.type === 'waiting' || room.state?.type === 'waiting_for_ready';
+      case 'locked':
+        return !!room.locked;
+      default:
+        return true;
+    }
+  };
+
+  const filteredRooms = searchedRooms.filter(matchesStateFilter);
+
   const visibleUserCount = filteredRooms.reduce((sum, room) => sum + (room.users?.length || 0), 0);
 
-  return (
-    <Tabs
-      value={activeTab}
-      onValueChange={(value) => navigate(`/admin/${value}`)}
-      className="w-full animate-fade-in"
-    >
-      <TabsList className="grid grid-cols-5 mb-4">
-        <TabsTrigger value="rooms">房间管理</TabsTrigger>
-        <TabsTrigger value="users">用户管理</TabsTrigger>
-        <TabsTrigger value="messages">消息广播</TabsTrigger>
-        <TabsTrigger value="settings">功能开关</TabsTrigger>
-        <TabsTrigger value="contest">比赛</TabsTrigger>
-      </TabsList>
+  // 概览统计（基于全部房间，不受筛选影响）
+  const totalPlayers = rooms.reduce((sum, room) => sum + (room.users?.length || 0), 0);
+  const playingCount = rooms.filter((room) => room.state?.type === 'playing').length;
+  const waitingCount = rooms.filter(
+    (room) =>
+      room.state?.type === 'select_chart' ||
+      room.state?.type === 'waiting' ||
+      room.state?.type === 'waiting_for_ready',
+  ).length;
 
-      <div className="animate-slide-in">
+  const roomFilterChips: { value: RoomStateFilter; label: string; count: number }[] = [
+    { value: 'all', label: '全部', count: rooms.length },
+    { value: 'playing', label: '游戏中', count: playingCount },
+    { value: 'waiting', label: '等待/选谱', count: waitingCount },
+    { value: 'locked', label: '已锁定', count: rooms.filter((r) => r.locked).length },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-in lg:flex-row">
+      <AdminSidebar activeTab={activeTab} onSelect={(value) => navigate(`/admin/${value}`)} />
+
+      <div className="min-w-0 flex-1 animate-slide-in">
         {activeTab === 'rooms' && (
           <div className="space-y-4">
+            <StatTiles
+              tiles={[
+                { label: '总房间', value: rooms.length, icon: LayoutGrid },
+                { label: '游戏中', value: playingCount, icon: Gamepad2, accent: 'text-green-600' },
+                { label: '等待 / 选谱', value: waitingCount, icon: Clock, accent: 'text-amber-600' },
+                { label: '在线玩家', value: totalPlayers, icon: Users },
+              ]}
+            />
             <Card>
-              <CardHeader>
-                <CardTitle className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
+              <CardHeader className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
                     房间列表
                     {rooms.length > 0 && (
-                      <Badge variant="secondary" className="ml-2">
-                        {filteredRooms.length}/{rooms.length} 个房间
+                      <Badge variant="secondary" className="ml-1">
+                        {filteredRooms.length}/{rooms.length}
                       </Badge>
                     )}
-                  </div>
-                  <div className="flex w-full items-center justify-end gap-2 md:w-auto">
-                    <div className="relative w-full md:w-[420px]">
+                  </CardTitle>
+                  <div className="flex w-full items-center gap-2 md:w-auto">
+                    <div className="relative w-full md:w-[360px]">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         ref={roomSearchInputRef}
                         value={roomSearchQuery}
                         onChange={(event) => setRoomSearchQuery(event.target.value)}
-                        placeholder="搜索房间ID，或玩家名字/ID、谱面名字/ID"
-                        className="h-10 pl-9 pr-16"
+                        placeholder="搜索房间ID / 玩家 / 谱面"
+                        className="h-9 pl-9 pr-3 sm:pr-16"
                       />
-                      <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs text-muted-foreground">
+                      <div className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 text-xs text-muted-foreground sm:flex">
                         <span className="rounded border px-1.5 py-0.5">Ctrl</span>
                         <span className="rounded border px-1.5 py-0.5">K</span>
                       </div>
@@ -713,15 +753,30 @@ export function AdminApiPanel() {
                       刷新
                     </Button>
                   </div>
-                </CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <span>查看所有房间的详细状态</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {roomFilterChips.map((chip) => (
+                    <button
+                      key={chip.value}
+                      type="button"
+                      onClick={() => setRoomStateFilter(chip.value)}
+                      className={cn(
+                        'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                        roomStateFilter === chip.value
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted',
+                      )}
+                    >
+                      {chip.label}
+                      <span className="text-[10px] opacity-70">{chip.count}</span>
+                    </button>
+                  ))}
                   {rooms.length > 0 && (
-                    <span className="text-muted-foreground">
-                      | 当前显示玩家数: {visibleUserCount} 人
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      当前显示玩家数: {visibleUserCount} 人
                     </span>
                   )}
-                </CardDescription>
+                </div>
               </CardHeader>
               <CardContent>
                 {rooms.length === 0 ? (
@@ -733,56 +788,147 @@ export function AdminApiPanel() {
                     没有找到匹配的房间，可尝试搜索房间ID、玩家名字或谱面信息
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {filteredRooms.map((room, index) => (
+                  <>
+                  {/* 移动端：堆叠卡片，操作常驻可见 */}
+                  <div className="space-y-2 sm:hidden">
+                    {filteredRooms.map((room) => (
+                      <div
+                        key={room.roomid}
+                        className="cursor-pointer rounded-lg border p-3 transition-colors hover:border-primary/50"
+                        onClick={() => navigate(`/room/${room.roomid}`)}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-medium">{room.roomid}</span>
+                          <div className="flex items-center gap-1">
+                            {getStateBadge(room.state.type)}
+                            {room.locked && (
+                              <Badge variant="destructive" className="gap-1">
+                                <Lock className="h-3 w-3" />
+                                锁定
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                          <div>房主: {room.host?.name || '未知'} (ID: {room.host?.id ?? '-'})</div>
+                          <div>谱面: {room.chart?.name || '未选择'}</div>
+                          <div>
+                            玩家: {room.users?.length || 0}/{room.max_users || '-'}
+                            {room.state?.type === 'playing' && (
+                              <span className="ml-1">
+                                · 完成 {room.state.finished_users?.length || 0} · 中止 {room.state.aborted_users?.length || 0}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                         <div
-                          key={room.roomid}
-                          className="p-3 border rounded-lg transition-all duration-200 hover:border-primary/50 hover:shadow-sm group"
-                          style={{ animationDelay: `${index * 0.05}s` }}
+                          className="mt-3 flex items-center justify-end gap-2"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{room.roomid}</span>
-                            <div className="flex items-center gap-2">
-                              <div className="flex gap-1">
-                                {getStateBadge(room.state.type)}
-                                {room.locked && <Badge variant="destructive">锁定</Badge>}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => navigate(`/room/${room.roomid}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            详情
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDisbandRoomById(room.roomid)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            解散
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 桌面端：紧凑表格 */}
+                  <div className="hidden sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>房间 ID</TableHead>
+                        <TableHead>房主</TableHead>
+                        <TableHead>谱面</TableHead>
+                        <TableHead className="text-center">玩家</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead className="text-right">操作</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRooms.map((room) => (
+                        <TableRow
+                          key={room.roomid}
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/room/${room.roomid}`)}
+                        >
+                          <TableCell className="font-mono font-medium">{room.roomid}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[140px] truncate">{room.host?.name || '未知'}</div>
+                            <div className="text-xs text-muted-foreground">ID: {room.host?.id ?? '-'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[180px] truncate">
+                              {room.chart?.name || <span className="text-muted-foreground">未选择</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="font-medium">
+                              {room.users?.length || 0}/{room.max_users || '-'}
+                            </div>
+                            {room.state?.type === 'playing' && (
+                              <div className="text-xs text-muted-foreground">
+                                完成 {room.state.finished_users?.length || 0} · 中止 {room.state.aborted_users?.length || 0}
                               </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {getStateBadge(room.state.type)}
+                              {room.locked && (
+                                <Badge variant="destructive" className="gap-1">
+                                  <Lock className="h-3 w-3" />
+                                  锁定
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                                onClick={() => handleDisbandRoomById(room.roomid)}
-                                title="解散房间"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-8 px-2"
                                 onClick={() => navigate(`/room/${room.roomid}`)}
                                 title="查看详情"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-destructive hover:text-destructive"
+                                onClick={() => handleDisbandRoomById(room.roomid)}
+                                title="解散房间"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground space-y-1">
-                            <div>房主: {room.host?.name || '未知'} (ID: {room.host?.id || '-'})</div>
-                            <div>谱面: {room.chart?.name || '未选择'}</div>
-                            <div>玩家: {room.users?.length || 0}/{room.max_users || '-'}</div>
-                            {room.state?.type === 'playing' && (
-                              <div className="text-xs">
-                                完成: {room.state.finished_users?.length || 0} / 
-                                中止: {room.state.aborted_users?.length || 0}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </div>
-                  )}
-                </CardContent>
+                    </TableBody>
+                  </Table>
+                  </div>
+                  </>
+                )}
+              </CardContent>
               </Card>
             </div>
           )}
@@ -792,68 +938,101 @@ export function AdminApiPanel() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  查询用户
+                  <Users className="h-5 w-5" />
+                  用户管理
                 </CardTitle>
+                <CardDescription>输入用户 ID 查询资料，并对该用户执行封禁 / 解封 / 断开操作</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="输入用户 ID"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                  />
+                  <div className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="输入用户 ID"
+                      value={userId}
+                      onChange={(e) => setUserId(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleSearchUser();
+                      }}
+                      className="pl-9"
+                    />
+                  </div>
                   <Button onClick={handleSearchUser}>
                     <Search className="h-4 w-4 mr-2" />
                     查询
                   </Button>
                 </div>
 
-                {userInfo && (
-                  <div className="p-4 border rounded-lg space-y-2 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{userInfo.name}</span>
-                      <div className="flex gap-1">
-                        {userInfo.banned && <Badge variant="destructive">已封禁</Badge>}
-                        {userInfo.login_banned && <Badge variant="destructive">已禁止登录</Badge>}
+                {userInfo ? (
+                  <div className="space-y-4 rounded-lg border p-4 animate-fade-in">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={userInfo.avatar} alt={userInfo.name} />
+                        <AvatarFallback>{userInfo.name?.[0]?.toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{userInfo.name}</span>
+                          <span className="text-sm text-muted-foreground">ID: {userInfo.id}</span>
+                          {userInfo.banned && <Badge variant="destructive">已封禁</Badge>}
+                          {userInfo.login_banned && <Badge variant="destructive">已禁止登录</Badge>}
+                        </div>
+                        {userInfo.bio && (
+                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{userInfo.bio}</p>
+                        )}
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div>ID: {userInfo.id}</div>
-                      <div>RKS: {userInfo.rks}</div>
-                      <div>经验: {userInfo.exp}</div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                      {[
+                        { label: 'RKS', value: userInfo.rks },
+                        { label: '经验', value: userInfo.exp },
+                        { label: '粉丝', value: userInfo.follower_count },
+                        { label: '关注', value: userInfo.following_count },
+                      ].map((stat) => (
+                        <div key={stat.label} className="rounded-md bg-muted p-2 text-center">
+                          <div className="text-xs text-muted-foreground">{stat.label}</div>
+                          <div className="font-semibold">{stat.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-1 text-sm text-muted-foreground">
                       <div>语言: {userInfo.language}</div>
                       <div>加入时间: {new Date(userInfo.joined).toLocaleDateString()}</div>
                       <div>最后登录: {new Date(userInfo.last_login).toLocaleDateString()}</div>
-                      <div>粉丝: {userInfo.follower_count} | 关注: {userInfo.following_count}</div>
-                      {userInfo.bio && <div>简介: {userInfo.bio}</div>}
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <div className="mb-2 text-sm font-medium">
+                        对 <span className="text-foreground">{userInfo.name}</span> 执行操作
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {userInfo.banned ? (
+                          <Button variant="outline" onClick={() => handleBanUser(false)}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            解封用户
+                          </Button>
+                        ) : (
+                          <Button variant="destructive" onClick={() => handleBanUser(true)}>
+                            <Ban className="h-4 w-4 mr-2" />
+                            封禁用户
+                          </Button>
+                        )}
+                        <Button variant="secondary" onClick={handleDisconnectUser}>
+                          <UserX className="h-4 w-4 mr-2" />
+                          断开连接
+                        </Button>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+                    输入用户 ID 并查询后，可在此查看资料并执行管理操作
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  用户操作
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="destructive" onClick={() => handleBanUser(true)}>
-                    <Ban className="h-4 w-4 mr-2" />
-                    封禁用户
-                  </Button>
-                  <Button variant="outline" onClick={() => handleBanUser(false)}>
-                    解封用户
-                  </Button>
-                </div>
-                <Button variant="secondary" onClick={handleDisconnectUser} className="w-full">
-                  <UserX className="h-4 w-4 mr-2" />
-                  断开连接
-                </Button>
               </CardContent>
             </Card>
           </div>
@@ -1346,6 +1525,6 @@ export function AdminApiPanel() {
           </div>
         )}
       </div>
-    </Tabs>
+    </div>
   );
 }

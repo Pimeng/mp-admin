@@ -308,18 +308,26 @@ export function RoomDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
+                <Button
+                  variant="outline"
+                  className="w-full"
                   onClick={fetchRoomDetail}
                   disabled={isLoading}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   刷新数据
                 </Button>
-                <Button 
-                  variant="destructive" 
-                  className="w-full" 
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSetMaxUsers}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  设置最大人数
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full"
                   onClick={handleDisbandRoom}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
