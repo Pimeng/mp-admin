@@ -45,11 +45,15 @@ const CSS = `
   max-width: 520px;
   width: calc(100% - 80px);
   opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
   transform: translateY(60px) skewY(3deg);
-  transition: all 0.6s cubic-bezier(0.22,1,0.36,1);
+  transition: opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1), visibility 0.6s;
 }
 .brutal-cookie-container.active {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
   transform: translateY(0) skewY(0deg);
 }
 .brutal-cookie-card-stack {
